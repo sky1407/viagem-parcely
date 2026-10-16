@@ -269,6 +269,15 @@ html, body {
     }
 }
 
+.parcel-tooltip {
+    pointer-events: none;
+}
+
+.parcel-tooltip .maplibregl-popup-content {
+    padding: 3px 8px;
+    font-weight: 600;
+}
+
 .error {
     position: absolute;
     inset: 0;

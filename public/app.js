@@ -131,6 +131,17 @@ function createMap() {
                     },
                 },
                 {
+                    id: 'parcels-hover',
+                    type: 'line',
+                    source: 'cadastre',
+                    'source-layer': 'parcels',
+                    minzoom: MIN_PARCEL_ZOOM,
+                    paint: {
+                        'line-color': '#1f3a5f',
+                        'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 2.5, 0],
+                    },
+                },
+                {
                     id: 'cadastral-areas-line',
                     type: 'line',
                     source: 'cadastre',
@@ -497,6 +508,46 @@ async function createSearch(map, detail) {
     });
 }
 
+function enableHover(map) {
+    const tooltip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'parcel-tooltip', offset: 14 });
+    let hovered = null;
+
+    const setHovered = (id) => {
+        if (hovered === id) {
+            return;
+        }
+        if (hovered !== null) {
+            map.setFeatureState({ source: 'cadastre', sourceLayer: 'parcels', id: hovered }, { hover: false });
+        }
+        hovered = id;
+        if (id !== null) {
+            map.setFeatureState({ source: 'cadastre', sourceLayer: 'parcels', id }, { hover: true });
+        }
+    };
+
+    map.on('mousemove', 'parcels-fill', (event) => {
+        const [feature] = event.features ?? [];
+        if (feature?.id === undefined) {
+            return;
+        }
+        setHovered(feature.id);
+        map.getCanvas().style.cursor = 'pointer';
+
+        const label = feature.properties.label;
+        if (label === undefined) {
+            tooltip.remove();
+            return;
+        }
+        tooltip.setLngLat(event.lngLat).setText(label).addTo(map);
+    });
+
+    map.on('mouseleave', 'parcels-fill', () => {
+        setHovered(null);
+        tooltip.remove();
+        map.getCanvas().style.cursor = '';
+    });
+}
+
 function init() {
     if (typeof maplibregl === 'undefined') {
         document.body.replaceChildren(
@@ -543,12 +594,7 @@ function init() {
             map.setPaintProperty('parcels-fill', 'fill-opacity', BASEMAPS[input.value].parcelOpacity);
         });
     }
-    map.on('mouseenter', 'parcels-fill', () => {
-        map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', 'parcels-fill', () => {
-        map.getCanvas().style.cursor = '';
-    });
+    enableHover(map);
 
     map.on('error', (event) => console.error(event.error));
 }
