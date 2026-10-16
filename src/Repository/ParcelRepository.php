@@ -36,18 +36,37 @@ final class ParcelRepository
         LEFT JOIN land_use lu ON lu.code = p.land_use_code
         WHERE p.id = ?";
 
+    private const FIND_BY_NUMBER_SQL = 'SELECT id, ST_XMin(b) AS west, ST_YMin(b) AS south, ST_XMax(b) AS east, ST_YMax(b) AS north
+        FROM (
+            SELECT id, ST_Transform(geom, 4326)::box2d AS b
+            FROM parcel
+            WHERE cadastral_area_code = ? AND numbering_type = ? AND stem_number = ? AND %s
+        ) found';
+
     public function __construct(private readonly Closure $connect)
     {
     }
 
-    public function find(int $id): ?array
+    public function findByNumber(int $cadastralAreaCode, int $numberingType, int $stemNumber, ?int $subdivisionNumber): ?array
     {
-        $pdo = ($this->connect)();
-        if (!$pdo instanceof PDO) {
-            throw new RuntimeException('Database connection factory must return PDO');
+        $params = [$cadastralAreaCode, $numberingType, $stemNumber];
+        if ($subdivisionNumber === null) {
+            $condition = 'subdivision_number IS NULL';
+        } else {
+            $condition = 'subdivision_number = ?';
+            $params[] = $subdivisionNumber;
         }
 
-        $statement = $pdo->prepare(self::FIND_SQL);
+        $statement = $this->pdo()->prepare(sprintf(self::FIND_BY_NUMBER_SQL, $condition));
+        $statement->execute($params);
+        $row = $statement->fetch();
+
+        return $row === false ? null : $row;
+    }
+
+    public function find(int $id): ?array
+    {
+        $statement = $this->pdo()->prepare(self::FIND_SQL);
         $statement->execute([$id]);
         $row = $statement->fetch();
         if ($row === false) {
@@ -57,5 +76,15 @@ final class ParcelRepository
         $row['protections'] = json_decode($row['protections'], true, flags: JSON_THROW_ON_ERROR);
 
         return $row;
+    }
+
+    private function pdo(): PDO
+    {
+        $pdo = ($this->connect)();
+        if (!$pdo instanceof PDO) {
+            throw new RuntimeException('Database connection factory must return PDO');
+        }
+
+        return $pdo;
     }
 }

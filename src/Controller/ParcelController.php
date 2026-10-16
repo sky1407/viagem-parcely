@@ -10,10 +10,42 @@ use App\Repository\ParcelRepository;
 final class ParcelController
 {
     private const BUILDING_NUMBERING = 1;
+    private const LAND_NUMBERING = 2;
+    private const NUMBER_PATTERN = '~^(?<building>st\.?\s*)?(?<stem>\d{1,5})(?:\s*/\s*(?<subdivision>\d{1,4}))?$~i';
     private const CADASTRE_VIEWER_URL = 'https://nahlizenidokn.cuzk.gov.cz/ZobrazObjekt.aspx?typ=parcela&id=%d';
 
     public function __construct(private readonly ParcelRepository $parcels)
     {
+    }
+
+    public function search(mixed $cadastralArea, mixed $number): void
+    {
+        $cadastralAreaCode = filter_var($cadastralArea, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($cadastralAreaCode === false) {
+            JsonResponse::error('Parameter cadastral_area must be a cadastral area code', 400);
+            return;
+        }
+
+        if (!is_string($number) || preg_match(self::NUMBER_PATTERN, trim($number), $matches) !== 1) {
+            JsonResponse::error('Parameter number must be a parcel number like "st. 12/3" or "791/34"', 400);
+            return;
+        }
+
+        $parcel = $this->parcels->findByNumber(
+            $cadastralAreaCode,
+            $matches['building'] !== '' ? self::BUILDING_NUMBERING : self::LAND_NUMBERING,
+            (int) $matches['stem'],
+            isset($matches['subdivision']) ? (int) $matches['subdivision'] : null,
+        );
+        if ($parcel === null) {
+            JsonResponse::error('Parcel not found', 404);
+            return;
+        }
+
+        JsonResponse::send([
+            'id' => $parcel['id'],
+            'bbox' => [$parcel['west'], $parcel['south'], $parcel['east'], $parcel['north']],
+        ]);
     }
 
     public function show(int $id): void

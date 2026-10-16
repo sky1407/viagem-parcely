@@ -61,6 +61,11 @@ $router->get('/api/cadastral-areas', function () use ($connect): void {
     (new CadastralAreaController(new CadastralAreaRepository($connect)))->index();
 });
 
+$router->get('/api/parcels/search', function () use ($connect): void {
+    $controller = new ParcelController(new ParcelRepository($connect));
+    $controller->search($_GET['cadastral_area'] ?? null, $_GET['number'] ?? null);
+});
+
 $router->get('/api/parcels/(?<id>\d{1,18})', function (string $id) use ($connect): void {
     $controller = new ParcelController(new ParcelRepository($connect));
     $controller->show((int) $id);
