@@ -253,7 +253,11 @@ Infraštruktúra je popísaná v `render.yaml`.
 | detail parcely | ~0,6 s |
 
 Pomalé CPU a DB na free pláne potvrdzujú, že predgenerovanie dlaždíc pri štarte (`WARM_TILES=1`) je tu dôležitejšie ako lokálne.
-Free web sa po 15 minútach nečinnosti uspí a disk nie je trvalý, preto sa cache po prebudení generuje znova.
+
+Celý okres má 12 498 dlaždíc, z toho 9 243 na z16. Pri ~1 s na dlaždicu by predgenerovanie trvalo ~1,5 hodiny,
+a free web sa pritom po 15 minútach nečinnosti uspí a disk nie je trvalý. Na Renderi sa preto predgenerováva iba z8–z14
+(`WARM_MAX_ZOOM=14`, 895 dlaždíc, niekoľko minút). Pokrýva to pohľad na okres aj prvé priblíženie s parcelami.
+z15–z16 sa vygenerujú pri prvom zobrazení. Na platenom pláne s trvalým diskom by sa cache predgenerovala raz celá.
 
 ## Známe obmedzenia a ďalšie kroky
 
