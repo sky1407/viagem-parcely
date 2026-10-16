@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Cache\TileCache;
 use App\Database;
+use App\LazyConnection;
 use App\Repository\TileRepository;
 use App\Service\TileService;
 
@@ -67,11 +68,10 @@ function districtTiles(array $config, int $minZoom, int $maxZoom): array
 function warm(array $config, array $tiles, int $worker, int $workers): int
 {
     try {
-        $pdo = null;
-        $connect = function () use ($config, &$pdo): PDO {
-            return $pdo ??= Database::connect(...$config['db']);
-        };
-        $service = new TileService(new TileRepository($connect), new TileCache($config['tile_cache_dir']));
+        $service = new TileService(
+            new TileRepository(new LazyConnection($config['db'])),
+            new TileCache($config['tile_cache_dir']),
+        );
 
         for ($i = $worker, $count = count($tiles); $i < $count; $i += $workers) {
             [$z, $x, $y] = $tiles[$i];

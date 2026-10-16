@@ -4,24 +4,17 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use Closure;
-use PDO;
-use RuntimeException;
+use App\LazyConnection;
 
 final class CadastralAreaRepository
 {
-    public function __construct(private readonly Closure $connect)
+    public function __construct(private readonly LazyConnection $connection)
     {
     }
 
     public function all(): array
     {
-        $pdo = ($this->connect)();
-        if (!$pdo instanceof PDO) {
-            throw new RuntimeException('Database connection factory must return PDO');
-        }
-
-        return $pdo->query(
+        return $this->connection->get()->query(
             'SELECT c.code, c.name, m.name AS municipality
             FROM cadastral_area c
             JOIN municipality m ON m.code = c.municipality_code

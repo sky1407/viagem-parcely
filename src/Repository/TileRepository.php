@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use Closure;
-use PDO;
-use RuntimeException;
+use App\LazyConnection;
 
 final class TileRepository
 {
@@ -33,7 +31,7 @@ final class TileRepository
         WHERE p.geom_3857 && b.env
     ) t WHERE t.geom IS NOT NULL)";
 
-    public function __construct(private readonly Closure $connect)
+    public function __construct(private readonly LazyConnection $connection)
     {
     }
 
@@ -50,12 +48,7 @@ final class TileRepository
             self::BUFFER,
         );
 
-        $pdo = ($this->connect)();
-        if (!$pdo instanceof PDO) {
-            throw new RuntimeException('Database connection factory must return PDO');
-        }
-
-        $statement = $pdo->prepare($sql);
+        $statement = $this->connection->get()->prepare($sql);
         $statement->execute([$z, $x, $y]);
         $tile = $statement->fetchColumn();
 

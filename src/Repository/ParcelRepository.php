@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Domain\ParcelNumber;
-use Closure;
-use PDO;
-use RuntimeException;
+use App\LazyConnection;
 
 final class ParcelRepository
 {
@@ -44,7 +42,7 @@ final class ParcelRepository
             WHERE cadastral_area_code = ? AND numbering_type = ? AND stem_number = ? AND %s
         ) found';
 
-    public function __construct(private readonly Closure $connect)
+    public function __construct(private readonly LazyConnection $connection)
     {
     }
 
@@ -58,7 +56,7 @@ final class ParcelRepository
             $params[] = $number->subdivisionNumber;
         }
 
-        $statement = $this->pdo()->prepare(sprintf(self::FIND_BY_NUMBER_SQL, $condition));
+        $statement = $this->connection->get()->prepare(sprintf(self::FIND_BY_NUMBER_SQL, $condition));
         $statement->execute($params);
         $row = $statement->fetch();
 
@@ -67,7 +65,7 @@ final class ParcelRepository
 
     public function find(int $id): ?array
     {
-        $statement = $this->pdo()->prepare(self::FIND_SQL);
+        $statement = $this->connection->get()->prepare(self::FIND_SQL);
         $statement->execute([$id]);
         $row = $statement->fetch();
         if ($row === false) {
@@ -77,15 +75,5 @@ final class ParcelRepository
         $row['protections'] = json_decode($row['protections'], true, flags: JSON_THROW_ON_ERROR);
 
         return $row;
-    }
-
-    private function pdo(): PDO
-    {
-        $pdo = ($this->connect)();
-        if (!$pdo instanceof PDO) {
-            throw new RuntimeException('Database connection factory must return PDO');
-        }
-
-        return $pdo;
     }
 }
