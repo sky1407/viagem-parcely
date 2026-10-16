@@ -310,6 +310,14 @@ Na záver som prešiel celý projekt znova. Nálezy som overil na bežiacej apli
 - **Chyba na mobile:** pri otvorenom formulári a detaile ostalo pre mapu ~100 px a `cameraForBounds` nevrátil nič. Formulár sa preto po úspešnom hľadaní zbalí a pre takýto prípad je záložné vycentrovanie.
 - **Indikátor načítavania a chyby:** „Načítám parcely…“ sa zobrazí, ak načítanie trvá dlhšie ako 300 ms, aby krátke načítania neblikali. Chyba dlaždíc sa zobrazí ako hlásenie nad mapou. Overené simulovaným pomalým serverom a odpoveďou 500.
 
+**Cache v prehliadači po nasadení**
+- **Chyba po nasadení:** po pridaní `bbox` do detailu parcely spadol prelet na parcelu („Cannot read properties of undefined“). Prehliadač mal detail z predchádzajúcej verzie ešte v cache (`max-age=3600`) a v tej `bbox` chýbal.
+- **Rovnaké riziko** platilo pre dlaždice (cache 1 deň, bez čísel parciel) aj pre `app.js`, ktorý nemal nastavené cachovanie, takže si ho prehliadač mohol heuristicky podržať.
+- **Riešenie:**
+  - Všetky volania API a dlaždíc nesú verziu (`?v=2`). Pri zmene formátu dát sa zvýši `API_VERSION` a prehliadač stiahne nové odpovede, pričom dlhú cache pre nezmenené dáta netreba skracovať.
+  - `index.html`, `app.js` a `style.css` majú `Cache-Control: no-cache`. Prehliadač sa vždy spýta, či sú aktuálne, a pri nezmenenom súbore dostane 304.
+  - Prelet bez platného `bbox` sa preskočí, takže detail sa zobrazí aj vtedy.
+
 ## Známe obmedzenia a ďalšie kroky
 
 - **Integračné testy API** (s testovacou DB) chýbajú. Endpointy som overoval ručne cez `curl` vrátane chybových stavov.

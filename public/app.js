@@ -1,6 +1,7 @@
 'use strict';
 
 const DISTRICT_BOUNDS = [[15.104, 50.275], [15.742, 50.547]];
+const API_VERSION = '2';
 const MIN_PARCEL_ZOOM = 14;
 const LABEL_ZOOM = 17;
 
@@ -74,6 +75,9 @@ function visiblePadding() {
 }
 
 function flyToParcel(map, bbox) {
+    if (!Array.isArray(bbox) || bbox.length !== 4) {
+        return;
+    }
     const camera = map.cameraForBounds(bbox, { padding: visiblePadding(), maxZoom: 18 });
     if (camera === undefined) {
         map.flyTo({ center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], zoom: Math.max(map.getZoom(), MIN_PARCEL_ZOOM) });
@@ -143,7 +147,7 @@ function createMap() {
                 },
                 cadastre: {
                     type: 'vector',
-                    tiles: [`${location.origin}/api/tiles/{z}/{x}/{y}.pbf`],
+                    tiles: [`${location.origin}/api/tiles/{z}/{x}/{y}.pbf?v=${API_VERSION}`],
                     maxzoom: 16,
                     attribution: '© <a href="https://cuzk.gov.cz">ČÚZK</a>',
                 },
@@ -370,7 +374,7 @@ function createDetailPanel(map) {
         panel.hidden = false;
 
         try {
-            const response = await fetch(`/api/parcels/${encodeURIComponent(id)}`, { signal: controller.signal });
+            const response = await fetch(`/api/parcels/${encodeURIComponent(id)}?v=${API_VERSION}`, { signal: controller.signal });
             if (!response.ok) {
                 throw new Error(response.status === 404 ? 'Parcela nebyla nalezena.' : `Chyba serveru (${response.status}).`);
             }
@@ -525,7 +529,7 @@ async function createSearch(map, detail) {
     };
 
     try {
-        const response = await fetch('/api/cadastral-areas');
+        const response = await fetch(`/api/cadastral-areas?v=${API_VERSION}`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -552,7 +556,7 @@ async function createSearch(map, detail) {
         showStatus('');
         button.disabled = true;
         try {
-            const query = new URLSearchParams({ cadastral_area: area.code, number: numberInput.value });
+            const query = new URLSearchParams({ cadastral_area: area.code, number: numberInput.value, v: API_VERSION });
             const response = await fetch(`/api/parcels/search?${query}`);
             if (response.status === 404) {
                 showStatus(`Parcela ${numberInput.value.trim()} v k. ú. ${area.name} neexistuje.`);
