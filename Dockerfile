@@ -16,4 +16,5 @@ COPY public/ public/
 COPY src/ src/
 ENV PORT=8080
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s CMD curl -fsS "http://localhost:${PORT}/" > /dev/null || exit 1
 CMD ["start-app"]
