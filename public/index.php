@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use App\Cache\TileCache;
+use App\Controller\CadastralAreaController;
 use App\Controller\ParcelController;
 use App\Controller\TileController;
 use App\Database;
 use App\Http\JsonResponse;
+use App\Repository\CadastralAreaRepository;
 use App\Repository\ParcelRepository;
 use App\Repository\TileRepository;
 use App\Router;
@@ -53,6 +55,10 @@ $router->get('/api/tiles/(?<z>\d{1,2})/(?<x>\d{1,7})/(?<y>\d{1,7})\.pbf', functi
     );
     $acceptsGzip = str_contains($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '', 'gzip');
     $controller->show((int) $z, (int) $x, (int) $y, $acceptsGzip);
+});
+
+$router->get('/api/cadastral-areas', function () use ($connect): void {
+    (new CadastralAreaController(new CadastralAreaRepository($connect)))->index();
 });
 
 $router->get('/api/parcels/(?<id>\d{1,18})', function (string $id) use ($connect): void {
