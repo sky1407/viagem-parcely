@@ -5,8 +5,11 @@ Webová aplikácia, ktorá na mape zobrazuje všetky parcely katastra nehnuteľn
 
 - Celý okres je dostupný bez obmedzenia rozsahu. Parcely sa kreslia od zoomu 14, pri oddialení sú vidieť hranice katastrálnych území.
 - Detail parcely obsahuje číslo, KÚ, obec, výmeru, druh pozemku, spôsob využitia, ochranu, platnosť a odkaz do Nahlížení do KN.
-- Parcelu sa dá vyhľadať podľa KÚ a čísla (napr. `Jičín` + `st. 1`).
+- Od zoomu 17 sú v mape čísla parciel. Pod kurzorom sa parcela zvýrazní a ukáže sa jej číslo.
+- Parcelu sa dá vyhľadať podľa KÚ a čísla (napr. `Jičín` + `st. 1`). Názov KÚ sa dá písať aj bez diakritiky.
+- Vybraná parcela je v URL, takže odkaz sa dá poslať ďalej. Označenie parcely aj odkaz sa dajú skopírovať jedným klikom.
 - Podklad sa dá prepnúť medzi OpenStreetMap a ortofotom ČÚZK.
+- Rozhranie funguje aj na mobile: panely sa zbalia a vybraná parcela nezostane schovaná pod detailom.
 
 Backend je čisté PHP bez frameworku, dáta sú v PostgreSQL/PostGIS a frontend používa MapLibre GL JS bez build kroku.
 

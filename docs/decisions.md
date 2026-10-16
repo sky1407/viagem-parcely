@@ -274,10 +274,46 @@ a free web sa pritom po 15 minútach nečinnosti uspí a disk nie je trvalý. Na
 (`WARM_MAX_ZOOM=14`, 895 dlaždíc, niekoľko minút). Pokrýva to pohľad na okres aj prvé priblíženie s parcelami.
 z15–z16 sa vygenerujú pri prvom zobrazení. Na platenom pláne s trvalým diskom by sa cache predgenerovala raz celá.
 
+## 21. Kontrola celého projektu: chyby, bezpečnosť a každodenná práca
+
+Na záver som prešiel celý projekt znova. Nálezy som overil na bežiacej aplikácii a až potom opravil.
+
+**Chyby**
+- **Neobmedzená cache:**
+  - Server generoval a ukladal dlaždice až do z22, hoci mapa používa najviac z16. Dlaždica z20 sa naozaj uložila na disk, takže požiadavkami na z17–z22 v okrese sa dal zaplniť disk a zahltiť DB.
+  - Limit je teraz jedna konštanta `TileService::MAX_ZOOM = 16`, ktorú používa controller aj predgenerovanie.
+- **Dátum „Platí od“:** `new Date('2006-05-28')` je polnoc v UTC, takže v pásmach západne od UTC sa zobrazil predchádzajúci deň. Dátum sa teraz skladá v miestnom čase (overené pre New York, Prahu a Auckland).
+- **`HEAD`:** vracal 405, takže monitorovacie nástroje by hlásili výpadok. Router teraz obsluhuje HEAD rovnakou trasou ako GET a v hlavičke `Allow` uvádza obe metódy.
+- **`/api/health`:** počítal všetky riadky (`count(*)`), na Renderi 1,8 s. Teraz berie odhad zo štatistík DB (11 ms).
+
+**Bezpečnosť a kvalita**
+- **HTTP hlavičky v Caddy:**
+  - CSP povoľuje iba vlastné skripty, MapLibre z unpkg a podklady OSM a ČÚZK; MapLibre potrebuje `blob:` pre web workery.
+  - Ďalej `nosniff`, `Referrer-Policy` (OSM vyžaduje pôvod), `frame-ancestors 'none'` a odstránená hlavička `X-Powered-By`.
+  - Celé UI som overil v prehliadači bez porušení CSP.
+- **`LazyConnection`:** typovaná trieda nahradila netypované closures a trikrát opakovanú kontrolu `instanceof PDO` v repository.
+
+**Každodenná práca s mapou**
+- **Čísla parciel v mape od z17:**
+  - Dlaždice z16 majú textové označenie parcely a samostatnú vrstvu bodov popisiek (`ST_PointOnSurface`). Bod je vždy vo vnútri parcely a každá parcela má jednu popisku bez duplikátov na hranách dlaždíc.
+  - Popisky sú iba v z16, lebo v z14 by dlaždicu zväčšili o 30 %. Cache narástla o 12 %.
+  - Font (Noto Sans, licencia OFL) je pribalený v projekte. Popisky obsahujú iba základné znaky, takže stačí jeden 77 kB súbor a CSP nemusí povoliť cudzí server.
+- **Zvýraznenie pod kurzorom:** cez `feature-state` sa prepína iba stav na GPU. Od z16 sa zobrazí aj bublina s číslom parcely.
+- **Odkaz na parcelu:**
+  - URL má tvar `#map=…&parcel=…`, s pomenovaným hash parametrom MapLibre. Stačí aj `#parcel=…`, detail obsahuje bbox a mapa na parcelu priletí.
+  - Pri ladení som našiel súbeh: o prelete som rozhodoval až po načítaní mapy, keď už MapLibre do URL zapísal úvodnú pozíciu. Rozhoduje sa preto ešte pred vytvorením mapy.
+- **Kopírovanie:** tlačidlá skopírujú označenie parcely (`parc. č. st. 1, k. ú. Jičín [659541]`) alebo krátky odkaz.
+
+**Mobil a spätná väzba**
+- **Panely** sú natívne `<details>`: bez vlastného JS, prístupné z klávesnice a na mobile zbalené.
+- **Viditeľná časť mapy:** výpočet zohľadňuje ovládanie aj detail. Prelet po hľadaní sa spustí až po zobrazení detailu, keď je známa jeho výška. Kliknutá parcela, ktorú by detail zakryl, sa posunie do viditeľnej časti.
+- **Chyba na mobile:** pri otvorenom formulári a detaile ostalo pre mapu ~100 px a `cameraForBounds` nevrátil nič. Formulár sa preto po úspešnom hľadaní zbalí a pre takýto prípad je záložné vycentrovanie.
+- **Indikátor načítavania a chyby:** „Načítám parcely…“ sa zobrazí, ak načítanie trvá dlhšie ako 300 ms, aby krátke načítania neblikali. Chyba dlaždíc sa zobrazí ako hlásenie nad mapou. Overené simulovaným pomalým serverom a odpoveďou 500.
+
 ## Známe obmedzenia a ďalšie kroky
 
 - **Integračné testy API** (s testovacou DB) chýbajú. Endpointy som overoval ručne cez `curl` vrátane chybových stavov.
 - **OSM dlaždice** (`tile.openstreetmap.org`) sú podľa podmienok použitia vhodné iba na demo. V produkcii by bol vlastný alebo komerčný podklad.
 - **`php -S` je vývojový server.** V produkcii nginx + php-fpm, pričom hotové dlaždice by servíroval nginx.
 - **Aktualizácia dát** je zatiaľ úplný reimport (~35 s). VFR ponúka aj zmenové dávky a cache by sa dala invalidovať iba pre dlaždice dotknutej obce.
-- **Popisky KÚ** na mape chýbajú. Riešením by bol bod popisky (`ST_PointOnSurface`) v dlaždici a zdroj fontov.
+- **Názvy KÚ** na mape chýbajú. Stačil by rovnaký mechanizmus ako pri číslach parciel (bod popisky v dlaždici). Font by však potreboval aj súbor so znakmi s diakritikou (rozsah 256–511).
