@@ -1,0 +1,92 @@
+# Parcely okresu Jičín
+
+Webová aplikácia, ktorá na mape zobrazuje všetky parcely katastra nehnuteľností v okrese Jičín
+(111 obcí, 240 katastrálnych území, 271 995 parciel). Po kliknutí na parcelu zobrazí jej detail.
+
+- Celý okres je dostupný bez obmedzenia rozsahu. Parcely sa kreslia od zoomu 14, pri oddialení sú vidieť hranice katastrálnych území.
+- Detail parcely obsahuje číslo, KÚ, obec, výmeru, druh pozemku, spôsob využitia, ochranu, platnosť a odkaz do Nahlížení do KN.
+- Parcelu sa dá vyhľadať podľa KÚ a čísla (napr. `Jičín` + `st. 1`).
+- Podklad sa dá prepnúť medzi OpenStreetMap a ortofotom ČÚZK.
+
+Backend je čisté PHP bez frameworku, dáta sú v PostgreSQL/PostGIS a frontend používa MapLibre GL JS bez build kroku.
+Rozhodnutia aj s nameranými číslami sú v [zápisníku rozhodnutí](docs/decisions.md).
+
+## Predpoklady
+
+- **PHP 8.3+** (vyvíjané na 8.5) s rozšíreniami `curl`, `dom`, `iconv`, `libxml`, `pcntl`, `pdo_pgsql`, `xmlreader`, `zip`, `zlib`.
+  Rozšírenie `pcntl` existuje iba na Linuxe a macOS, na Windows použite WSL.
+- **Composer 2**, ktorý tu slúži iba na PSR-4 autoload, žiadne knižnice sa neinštalujú.
+- **Docker + Docker Compose** pre PostGIS.
+- Prístup na internet: dáta ČÚZK pri importe, MapLibre z CDN a podkladové mapy v prehliadači.
+
+## Spustenie
+
+```bash
+docker compose up -d db           # PostGIS 17 + 3.5 na porte 5433, schéma sa vytvorí automaticky
+composer install                  # vygeneruje vendor/autoload.php
+php bin/import.php                # stiahne a naimportuje celý okres (~1 min, ~54 MB do storage/import)
+php bin/warm-tiles.php            # voliteľné: predgeneruje dlaždice celého okresu (~7 s)
+PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8080 -t public public/index.php
+```
+
+Aplikácia beží na <http://127.0.0.1:8080/>. Pohľad na mapu sa ukladá do URL (napr. `/#17/50.4363/15.3525`).
+
+### Voľby skriptov
+
+| Príkaz | Voľba | Význam |
+|---|---|---|
+| `bin/import.php` | `--municipality=572659` | importuje iba jednu obec (kód RÚIAN) |
+| | `--date=20260930` | dátum súboru VFR; predvolene posledný deň minulého mesiaca |
+| `bin/warm-tiles.php` | `--workers=6` | počet paralelných procesov |
+| | `--min-zoom=8 --max-zoom=16` | rozsah zoomov |
+
+Import je idempotentný: každá obec sa nahradí v jednej transakcii a stiahnuté ZIP súbory sa pri ďalšom behu
+berú z `storage/import`. Na konci importu sa vymaže cache dlaždíc.
+
+### Konfigurácia
+
+Pripojenie k DB sa číta z premenných prostredia `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+(predvolene `127.0.0.1:5433`, `parcels`/`parcels`/`parcels`), pozri [config.php](config.php).
+Rovnaké premenné používa `docker-compose.yml`.
+
+Na prezeranie databázy je k dispozícii voliteľný pgAdmin: `docker compose --profile tools up -d`, potom <http://127.0.0.1:5050/>.
+
+## API
+
+| Endpoint | Odpoveď |
+|---|---|
+| `GET /api/tiles/{z}/{x}/{y}.pbf` | Mapbox Vector Tile s vrstvami `cadastral_areas` (vždy) a `parcels` (z ≥ 14); prázdna dlaždica vracia `204` |
+| `GET /api/parcels/{id}` | detail parcely (JSON) |
+| `GET /api/parcels/search?cadastral_area={kód}&number={číslo}` | `{id, bbox}` nájdenej parcely; číslo vo formáte `st. 12/3`, `791/34`, `15` |
+| `GET /api/cadastral-areas` | zoznam KÚ okresu pre našepkávač |
+| `GET /api/health` | stav aplikácie a počet parciel |
+
+Chyby majú tvar `{"error": "..."}` s kódom 400, 404, 405 alebo 500. Pri chybe 500 sa detail zapíše iba do logu servera.
+
+## Štruktúra
+
+```
+bin/
+  import.php              import číselníkov, obcí, KÚ a parciel z RÚIAN VFR
+  warm-tiles.php          paralelné predgenerovanie dlaždíc
+public/
+  index.php               front controller (routy, DI, globálne ošetrenie chýb)
+  index.html, app.js, style.css
+src/
+  Router.php              regex router s pomenovanými parametrami, 404/405
+  Database.php            továreň na PDO
+  Http/JsonResponse.php
+  Controller/             HTTP vrstva: validácia vstupov, hlavičky
+  Repository/             SQL dotazy (dlaždice, parcely, KÚ)
+  Service/TileService.php cache → generovanie → gzip
+  Cache/TileCache.php     disková cache dlaždíc s atomickým zápisom
+  Import/                 Downloader, CodeListImporter, VfrParcelReader, GmlToWkt, ParcelWriter
+sql/schema.sql            schéma PostGIS (spúšťa sa pri prvom štarte kontajnera)
+storage/                  stiahnuté dáta a cache dlaždíc (mimo gitu)
+```
+
+## Zdroje dát
+
+- RÚIAN, výmenný formát VFR po obciach (`vdp.cuzk.gov.cz`): parcely, hranice KÚ.
+- Číselníky ČÚZK (`services.cuzk.gov.cz/sestavy/cis`): druhy pozemkov, spôsoby využitia a ochrany, zoznam KÚ.
+- Ortofoto ČÚZK (`ags.cuzk.gov.cz`) a OpenStreetMap ako podkladové mapy.
