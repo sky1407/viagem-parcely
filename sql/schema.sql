@@ -52,3 +52,7 @@ CREATE INDEX parcel_geom_3857_gist ON parcel USING gist (geom_3857);
 CREATE UNIQUE INDEX parcel_number_idx
     ON parcel (cadastral_area_code, numbering_type, stem_number, subdivision_number) NULLS NOT DISTINCT;
 CREATE INDEX cadastral_area_geom_3857_gist ON cadastral_area USING gist (geom_3857);
+
+CREATE MATERIALIZED VIEW district_boundary AS
+SELECT ST_Transform(ST_Boundary(ST_Union(geom)), 3857) AS geom_3857
+FROM cadastral_area;

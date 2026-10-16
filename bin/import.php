@@ -67,6 +67,7 @@ try {
         );
     }
 
+    $pdo->exec('REFRESH MATERIALIZED VIEW district_boundary');
     $pdo->exec('ANALYZE cadastral_area, parcel, parcel_protection');
     (new TileCache($config['tile_cache_dir']))->clear();
     echo "Tile cache cleared\n";

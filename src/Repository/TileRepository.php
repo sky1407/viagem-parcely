@@ -15,6 +15,12 @@ final class TileRepository
     private const EXTENT = 4096;
     private const BUFFER = 64;
 
+    private const DISTRICT_LAYER = "(SELECT ST_AsMVT(t, 'district', %1\$d, 'geom') FROM (
+        SELECT ST_AsMVTGeom(d.geom_3857, b.env, %1\$d, %2\$d, true) AS geom
+        FROM district_boundary d, bounds b
+        WHERE d.geom_3857 && b.env
+    ) t WHERE t.geom IS NOT NULL)";
+
     private const CADASTRAL_AREAS_LAYER = "(SELECT ST_AsMVT(t, 'cadastral_areas', %1\$d, 'geom', 'code') FROM (
         SELECT c.code, c.name, ST_AsMVTGeom(c.geom_3857, b.env, %1\$d, %2\$d, true) AS geom
         FROM cadastral_area c, bounds b
@@ -33,7 +39,7 @@ final class TileRepository
 
     public function tile(int $z, int $x, int $y): string
     {
-        $layers = [self::CADASTRAL_AREAS_LAYER];
+        $layers = [self::DISTRICT_LAYER, self::CADASTRAL_AREAS_LAYER];
         if ($z >= self::MIN_PARCEL_ZOOM) {
             $layers[] = self::PARCELS_LAYER;
         }
