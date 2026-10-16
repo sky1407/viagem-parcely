@@ -16,7 +16,10 @@ const LAND_TYPES = [
     [14, 'ostatní plocha', '#d6d1c4'],
 ];
 const UNKNOWN_LAND_TYPE_COLOR = '#bbbbbb';
-const NO_SELECTION = -1;
+const NOTHING_SELECTED = ['==', ['id'], -1];
+const SELECTION_LAYERS = ['parcels-selected-fill', 'parcels-selected-casing', 'parcels-selected-line'];
+const SELECTION_COLOR = '#00b4ff';
+const DISTRICT_COLOR = '#ff00a8';
 const BASEMAPS = {
     osm: { parcelOpacity: 0.55 },
     orthophoto: { parcelOpacity: 0.2 },
@@ -47,7 +50,7 @@ function createMap() {
     return new maplibregl.Map({
         container: 'map',
         bounds: DISTRICT_BOUNDS,
-        fitBoundsOptions: { padding: 20 },
+        fitBoundsOptions: { padding: { top: 20, bottom: 20, right: 60, left: window.innerWidth > 600 ? 280 : 20 } },
         minZoom: 8,
         maxZoom: 20,
         hash: true,
@@ -98,15 +101,6 @@ function createMap() {
                     },
                 },
                 {
-                    id: 'parcels-selected',
-                    type: 'line',
-                    source: 'cadastre',
-                    'source-layer': 'parcels',
-                    minzoom: MIN_PARCEL_ZOOM,
-                    filter: ['==', ['id'], NO_SELECTION],
-                    paint: { 'line-color': '#1f5fbf', 'line-width': 3 },
-                },
-                {
                     id: 'cadastral-areas-line',
                     type: 'line',
                     source: 'cadastre',
@@ -115,6 +109,58 @@ function createMap() {
                         'line-color': '#b03a2e',
                         'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1, 14, 2.5],
                     },
+                },
+                {
+                    id: 'district-casing',
+                    type: 'line',
+                    source: 'cadastre',
+                    'source-layer': 'district',
+                    layout: { 'line-join': 'round' },
+                    paint: {
+                        'line-color': '#ffffff',
+                        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 6, 14, 10],
+                        'line-opacity': 0.9,
+                    },
+                },
+                {
+                    id: 'district-line',
+                    type: 'line',
+                    source: 'cadastre',
+                    'source-layer': 'district',
+                    layout: { 'line-join': 'round' },
+                    paint: {
+                        'line-color': DISTRICT_COLOR,
+                        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3, 14, 5],
+                    },
+                },
+                {
+                    id: 'parcels-selected-fill',
+                    type: 'fill',
+                    source: 'cadastre',
+                    'source-layer': 'parcels',
+                    minzoom: MIN_PARCEL_ZOOM,
+                    filter: NOTHING_SELECTED,
+                    paint: { 'fill-color': SELECTION_COLOR, 'fill-opacity': 0.45 },
+                },
+                {
+                    id: 'parcels-selected-casing',
+                    type: 'line',
+                    source: 'cadastre',
+                    'source-layer': 'parcels',
+                    minzoom: MIN_PARCEL_ZOOM,
+                    filter: NOTHING_SELECTED,
+                    layout: { 'line-join': 'round' },
+                    paint: { 'line-color': '#ffffff', 'line-width': 8 },
+                },
+                {
+                    id: 'parcels-selected-line',
+                    type: 'line',
+                    source: 'cadastre',
+                    'source-layer': 'parcels',
+                    minzoom: MIN_PARCEL_ZOOM,
+                    filter: NOTHING_SELECTED,
+                    layout: { 'line-join': 'round' },
+                    paint: { 'line-color': SELECTION_COLOR, 'line-width': 4 },
                 },
             ],
         },
@@ -172,11 +218,17 @@ function createDetailPanel(map) {
     const content = document.getElementById('detail-content');
     let request = null;
 
+    const select = (filter) => {
+        for (const layer of SELECTION_LAYERS) {
+            map.setFilter(layer, filter);
+        }
+    };
+
     const close = () => {
         request?.abort();
         request = null;
         panel.hidden = true;
-        map.setFilter('parcels-selected', ['==', ['id'], NO_SELECTION]);
+        select(NOTHING_SELECTED);
     };
 
     const open = async (id) => {
@@ -184,7 +236,7 @@ function createDetailPanel(map) {
         const controller = new AbortController();
         request = controller;
 
-        map.setFilter('parcels-selected', ['==', ['id'], id]);
+        select(['==', ['id'], id]);
         content.replaceChildren(element('p', 'Načítám…'));
         panel.hidden = false;
 

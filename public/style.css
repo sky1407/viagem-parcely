@@ -97,6 +97,29 @@ html, body {
     border: 1px solid rgba(0, 0, 0, 0.3);
 }
 
+.legend .legend-section {
+    margin-top: 10px;
+}
+
+.legend .line {
+    width: 18px;
+    height: 0;
+    border-top: 4px solid;
+}
+
+.legend .line-district {
+    border-color: #ff00a8;
+}
+
+.legend .line-area {
+    border-top-width: 2px;
+    border-color: #b03a2e;
+}
+
+.legend .line-selected {
+    border-color: #00b4ff;
+}
+
 .hint {
     margin: 8px 0 0;
     color: #b03a2e;
