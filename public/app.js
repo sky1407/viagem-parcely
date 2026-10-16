@@ -2,6 +2,7 @@
 
 const DISTRICT_BOUNDS = [[15.104, 50.275], [15.742, 50.547]];
 const MIN_PARCEL_ZOOM = 14;
+const LABEL_ZOOM = 17;
 
 const LAND_TYPES = [
     [2, 'orná půda', '#f2e19b'],
@@ -61,6 +62,7 @@ function createMap() {
         hash: true,
         style: {
             version: 8,
+            glyphs: `${location.origin}/fonts/{fontstack}/{range}.pbf`,
             sources: {
                 osm: {
                     type: 'raster',
@@ -166,6 +168,24 @@ function createMap() {
                     filter: NOTHING_SELECTED,
                     layout: { 'line-join': 'round' },
                     paint: { 'line-color': SELECTION_COLOR, 'line-width': 4 },
+                },
+                {
+                    id: 'parcel-labels',
+                    type: 'symbol',
+                    source: 'cadastre',
+                    'source-layer': 'parcel_labels',
+                    minzoom: LABEL_ZOOM,
+                    layout: {
+                        'text-field': ['get', 'label'],
+                        'text-font': ['NotoSansMedium'],
+                        'text-size': ['interpolate', ['linear'], ['zoom'], LABEL_ZOOM, 11, 19, 15],
+                        'text-padding': 1,
+                    },
+                    paint: {
+                        'text-color': '#2b2b2b',
+                        'text-halo-color': 'rgba(255, 255, 255, 0.9)',
+                        'text-halo-width': 1.5,
+                    },
                 },
             ],
         },
