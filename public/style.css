@@ -10,19 +10,68 @@ html, body {
     inset: 0;
 }
 
-.legend {
+.controls {
     position: absolute;
     top: 10px;
     left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 250px;
+}
+
+.panel {
     padding: 10px 12px;
     background: rgba(255, 255, 255, 0.92);
     border-radius: 6px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
-.legend h2 {
+.panel h2 {
     margin: 0 0 6px;
     font-size: 14px;
+}
+
+.search {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.search label {
+    color: #666;
+}
+
+.search input {
+    padding: 5px 6px;
+    font: inherit;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+}
+
+.search button {
+    margin-top: 6px;
+    padding: 6px;
+    font: inherit;
+    font-weight: 600;
+    color: #fff;
+    background: #1f5fbf;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.search button:disabled {
+    background: #8aa6d6;
+    cursor: wait;
+}
+
+.search .status-error {
+    margin: 4px 0 0;
+}
+
+.status-error[hidden] {
+    display: none;
 }
 
 .legend ul {
@@ -108,7 +157,7 @@ html, body {
     color: #666;
 }
 
-.detail .status-error {
+.status-error {
     color: #b03a2e;
 }
 
@@ -120,6 +169,15 @@ html, body {
         right: 10px;
         width: auto;
         max-height: 50%;
+    }
+
+    .controls {
+        right: 50px;
+        width: auto;
+    }
+
+    .legend {
+        display: none;
     }
 }
 

@@ -201,6 +201,81 @@ function createDetailPanel(map) {
     return { open, close };
 }
 
+async function createSearch(map, detail) {
+    const form = document.getElementById('search');
+    const areaInput = document.getElementById('search-area');
+    const numberInput = document.getElementById('search-number');
+    const button = form.querySelector('button');
+    const status = document.getElementById('search-status');
+    const areas = new Map();
+    const areaKey = (name) => name.trim().toLocaleLowerCase('cs');
+
+    const showStatus = (message) => {
+        status.textContent = message;
+        status.hidden = message === '';
+    };
+
+    try {
+        const response = await fetch('/api/cadastral-areas');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const options = document.createDocumentFragment();
+        for (const area of await response.json()) {
+            areas.set(areaKey(area.name), area);
+            const option = element('option');
+            option.value = area.name;
+            if (area.municipality !== area.name) {
+                option.label = `obec ${area.municipality}`;
+            }
+            options.append(option);
+        }
+        document.getElementById('cadastral-areas').append(options);
+    } catch (error) {
+        console.error(error);
+        showStatus('Seznam katastrálních území se nepodařilo načíst.');
+        button.disabled = true;
+        return;
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const area = areas.get(areaKey(areaInput.value));
+        if (area === undefined) {
+            showStatus('Vyberte katastrální území ze seznamu.');
+            return;
+        }
+
+        showStatus('');
+        button.disabled = true;
+        try {
+            const query = new URLSearchParams({ cadastral_area: area.code, number: numberInput.value });
+            const response = await fetch(`/api/parcels/search?${query}`);
+            if (response.status === 404) {
+                showStatus(`Parcela ${numberInput.value.trim()} v k. ú. ${area.name} neexistuje.`);
+                return;
+            }
+            if (response.status === 400) {
+                showStatus('Zadejte číslo ve tvaru „st. 12/3“ nebo „791/34“.');
+                return;
+            }
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const parcel = await response.json();
+            const camera = map.cameraForBounds(parcel.bbox, { padding: 80, maxZoom: 18 });
+            map.flyTo({ ...camera, zoom: Math.max(camera?.zoom ?? MIN_PARCEL_ZOOM, MIN_PARCEL_ZOOM) });
+            detail.open(parcel.id);
+        } catch (error) {
+            console.error(error);
+            showStatus('Hledání se nepodařilo, zkuste to znovu.');
+        } finally {
+            button.disabled = false;
+        }
+    });
+}
+
 function init() {
     if (typeof maplibregl === 'undefined') {
         const message = document.createElement('p');
@@ -231,6 +306,7 @@ function init() {
         }
         detail.open(feature.id);
     });
+    createSearch(map, detail);
     map.on('mouseenter', 'parcels-fill', () => {
         map.getCanvas().style.cursor = 'pointer';
     });
