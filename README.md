@@ -15,7 +15,7 @@ Rozhodnutia aj s nameranými číslami sú v [zápisníku rozhodnutí](docs/deci
 
 - **PHP 8.3+** (vyvíjané na 8.5) s rozšíreniami `curl`, `dom`, `iconv`, `libxml`, `pcntl`, `pdo_pgsql`, `xmlreader`, `zip`, `zlib`.
   Rozšírenie `pcntl` existuje iba na Linuxe a macOS, na Windows použite WSL.
-- **Composer 2**, ktorý tu slúži iba na PSR-4 autoload, žiadne knižnice sa neinštalujú.
+- **Composer 2**, ktorý tu slúži na PSR-4 autoload. Aplikácia nemá žiadne runtime knižnice, jediná vývojová závislosť je PHPUnit.
 - **Docker + Docker Compose** pre PostGIS.
 - Prístup na internet: dáta ČÚZK pri importe, MapLibre z CDN a podkladové mapy v prehliadači.
 
@@ -23,13 +23,22 @@ Rozhodnutia aj s nameranými číslami sú v [zápisníku rozhodnutí](docs/deci
 
 ```bash
 docker compose up -d db           # PostGIS 17 + 3.5 na porte 5433, schéma sa vytvorí automaticky
-composer install                  # vygeneruje vendor/autoload.php
+composer install                  # autoload + PHPUnit
 php bin/import.php                # stiahne a naimportuje celý okres (~1 min, ~54 MB do storage/import)
 php bin/warm-tiles.php            # voliteľné: predgeneruje dlaždice celého okresu (~7 s)
 PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8080 -t public public/index.php
 ```
 
 Aplikácia beží na <http://127.0.0.1:8080/>. Pohľad na mapu sa ukladá do URL (napr. `/#17/50.4363/15.3525`).
+
+### Testy
+
+```bash
+vendor/bin/phpunit
+```
+
+Unit testy (PHPUnit 12) pokrývajú prevod GML → WKT vrátane oblúkov, parsovanie čísla parcely a router.
+Nepotrebujú databázu ani sieť.
 
 ### Voľby skriptov
 
@@ -81,6 +90,8 @@ src/
   Service/TileService.php cache → generovanie → gzip
   Cache/TileCache.php     disková cache dlaždíc s atomickým zápisom
   Import/                 Downloader, CodeListImporter, VfrParcelReader, GmlToWkt, ParcelWriter
+  Domain/ParcelNumber.php parsovanie a formátovanie čísla parcely („st. 12/3“)
+tests/                    PHPUnit testy
 sql/schema.sql            schéma PostGIS (spúšťa sa pri prvom štarte kontajnera)
 storage/                  stiahnuté dáta a cache dlaždíc (mimo gitu)
 ```

@@ -188,9 +188,34 @@ Dlaždicová služba ČÚZK `ORTOFOTO_WM` je priamo v EPSG:3857, takže stačí 
 Vrstva je predvolene vypnutá a dlaždice sa začnú sťahovať až po prepnutí.
 Pri ortofote sa výplň parciel stlmí na 20 %.
 
+## 19. Testy: unit testy na miestach s najvyšším rizikom
+
+Počas vývoja som každý krok overoval ručne: `curl` na API, kontroly v DB (počty, `ST_IsValid`, súčet plôch)
+a headless prehliadač so screenshotmi. Na záver som doplnil PHPUnit (jediná vývojová závislosť) na tri miesta,
+kde by sa chyba najľahšie skryla:
+- **`GmlToWkt`:**
+  - polygón, diera, kružnica a skutočná parcela z VFR s oblúkom (`ArcString`);
+  - multi-polygón;
+  - 8 druhov neplatného vstupu.
+- **`ParcelNumber`:**
+  - parsovanie a formátovanie čísla parcely (`st. 12/3`, `ST12`, `791 / 34`);
+  - spätný prevod text → číslo → text dá rovnakú hodnotu;
+  - 11 neplatných vstupov vrátane pokusu o SQL injection.
+  - Logiku som kvôli tomu vytiahol z controllera do samostatnej triedy, ktorú používa aj formátovanie v detaile.
+- **`Router`:**
+  - pomenované parametre nezávisle od poradia skupín v regexe;
+  - ukotvenie regexu, poradie trás, 404 a 405.
+
+Spolu 41 testov. Či testy naozaj niečo strážia, som overil mutáciami: odstránenie `^…$` v routeri aj
+povolenie neobmedzenej dĺžky čísla parcely testy zachytili.
+
+**Nájdená chyba:** test kružnice odhalil, že pri výpočte stredu môže vzniknúť záporná nula a WKT obsahovalo `-0`.
+PostGIS ju načíta ako 0, ale výstup nebol kanonický. Všetky súradnice teraz prechádzajú jednou formátovacou
+metódou. Po oprave som zopakoval celý import: 271 995 parciel, 0 nevalidných.
+
 ## Známe obmedzenia a ďalšie kroky
 
-- **Automatické testy chýbajú.** Overovanie prebiehalo ručne: `curl` na API, kontroly v DB a headless prehliadač so screenshotmi. Ako prvé by som doplnil PHPUnit testy na `GmlToWkt` (oblúky), parsovanie čísla parcely a `Router`.
+- **Integračné testy API** (s testovacou DB) chýbajú. Endpointy som overoval ručne cez `curl` vrátane chybových stavov.
 - **OSM dlaždice** (`tile.openstreetmap.org`) sú podľa podmienok použitia vhodné iba na demo. V produkcii by bol vlastný alebo komerčný podklad.
 - **`php -S` je vývojový server.** V produkcii nginx + php-fpm, pričom hotové dlaždice by servíroval nginx.
 - **Aktualizácia dát** je zatiaľ úplný reimport (~35 s). VFR ponúka aj zmenové dávky a cache by sa dala invalidovať iba pre dlaždice dotknutej obce.
