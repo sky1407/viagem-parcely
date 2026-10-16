@@ -22,6 +22,7 @@ final class ParcelRepository
             m.name AS municipality_name,
             lt.name AS land_type,
             lu.name AS land_use,
+            ST_XMin(b.box) AS west, ST_YMin(b.box) AS south, ST_XMax(b.box) AS east, ST_YMax(b.box) AS north,
             (
                 SELECT COALESCE(json_agg(pt.name ORDER BY pt.name), '[]')
                 FROM parcel_protection pp
@@ -33,6 +34,7 @@ final class ParcelRepository
         JOIN municipality m ON m.code = c.municipality_code
         JOIN land_type lt ON lt.code = p.land_type_code
         LEFT JOIN land_use lu ON lu.code = p.land_use_code
+        CROSS JOIN LATERAL (SELECT ST_Transform(p.geom, 4326)::box2d AS box) b
         WHERE p.id = ?";
 
     private const FIND_BY_NUMBER_SQL = 'SELECT id, ST_XMin(b) AS west, ST_YMin(b) AS south, ST_XMax(b) AS east, ST_YMax(b) AS north

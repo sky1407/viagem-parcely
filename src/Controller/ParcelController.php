@@ -64,6 +64,7 @@ final class ParcelController
             'valid_from' => $parcel['valid_from'],
             'cadastral_area' => ['code' => $parcel['cadastral_area_code'], 'name' => $parcel['cadastral_area_name']],
             'municipality' => ['code' => $parcel['municipality_code'], 'name' => $parcel['municipality_name']],
+            'bbox' => [$parcel['west'], $parcel['south'], $parcel['east'], $parcel['north']],
             'cadastre_url' => sprintf(self::CADASTRE_VIEWER_URL, $parcel['id']),
         ]);
     }
