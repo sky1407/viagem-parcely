@@ -23,7 +23,9 @@ CREATE TABLE municipality (
 CREATE TABLE cadastral_area (
     code integer PRIMARY KEY,
     name text NOT NULL,
-    municipality_code integer NOT NULL REFERENCES municipality (code)
+    municipality_code integer NOT NULL REFERENCES municipality (code),
+    geom geometry(MultiPolygon, 5514),
+    geom_3857 geometry(MultiPolygon, 3857) GENERATED ALWAYS AS (ST_Transform(geom, 3857)) STORED
 );
 
 CREATE TABLE parcel (
@@ -48,3 +50,4 @@ CREATE TABLE parcel_protection (
 
 CREATE INDEX parcel_geom_3857_gist ON parcel USING gist (geom_3857);
 CREATE INDEX parcel_cadastral_area_idx ON parcel (cadastral_area_code);
+CREATE INDEX cadastral_area_geom_3857_gist ON cadastral_area USING gist (geom_3857);

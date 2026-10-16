@@ -49,7 +49,11 @@ try {
     foreach ($municipalityCodes as $index => $municipalityCode) {
         $zipPath = $downloader->fetch(sprintf(VFR_URL, $date, $municipalityCode));
         $municipalityStarted = microtime(true);
-        $count = $writer->replaceMunicipality($municipalityCode, $reader->read($zipPath));
+        $count = $writer->replaceMunicipality(
+            $municipalityCode,
+            $reader->readCadastralAreaBoundaries($zipPath),
+            $reader->read($zipPath),
+        );
         $total += $count;
 
         printf(
@@ -62,7 +66,7 @@ try {
         );
     }
 
-    $pdo->exec('ANALYZE parcel, parcel_protection');
+    $pdo->exec('ANALYZE cadastral_area, parcel, parcel_protection');
     printf("Done: %d parcels in %.1fs (VFR %s)\n", $total, microtime(true) - $started, $date);
 } catch (Throwable $e) {
     fwrite(STDERR, 'Import failed: ' . $e->getMessage() . PHP_EOL);

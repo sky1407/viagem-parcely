@@ -9,6 +9,29 @@ use RuntimeException;
 
 final class GmlToWkt
 {
+    public function multiSurface(DOMElement $multiSurface): string
+    {
+        if ($multiSurface->localName !== 'MultiSurface') {
+            throw new RuntimeException("Unsupported geometry: {$multiSurface->localName}");
+        }
+
+        $polygons = [];
+        foreach ($this->children($multiSurface) as $member) {
+            if ($member->localName !== 'surfaceMember' && $member->localName !== 'surfaceMembers') {
+                throw new RuntimeException("Unsupported surface member: {$member->localName}");
+            }
+            foreach ($this->children($member) as $polygon) {
+                $polygons[] = $this->polygon($polygon);
+            }
+        }
+
+        if ($polygons === []) {
+            throw new RuntimeException('MultiSurface without polygons');
+        }
+
+        return 'MULTISURFACE(' . implode(', ', $polygons) . ')';
+    }
+
     public function polygon(DOMElement $polygon): string
     {
         if ($polygon->localName !== 'Polygon') {

@@ -24,12 +24,13 @@ final class ParcelWriter
     {
     }
 
-    public function replaceMunicipality(int $municipalityCode, iterable $parcels): int
+    public function replaceMunicipality(int $municipalityCode, array $boundaries, iterable $parcels): int
     {
         $this->pdo->beginTransaction();
 
         try {
             $cadastralAreas = $this->cadastralAreaCodes($municipalityCode);
+            $this->updateBoundaries($municipalityCode, $cadastralAreas, $boundaries);
 
             $delete = $this->pdo->prepare(
                 'DELETE FROM parcel WHERE cadastral_area_code IN (
@@ -80,6 +81,20 @@ final class ParcelWriter
         }
 
         return array_fill_keys($codes, true);
+    }
+
+    private function updateBoundaries(int $municipalityCode, array $cadastralAreas, array $boundaries): void
+    {
+        $update = $this->pdo->prepare(
+            'UPDATE cadastral_area SET geom = ST_Multi(ST_CurveToLine(ST_GeomFromText(?, 5514))) WHERE code = ?'
+        );
+
+        foreach ($boundaries as $code => $wkt) {
+            if (!isset($cadastralAreas[$code])) {
+                throw new RuntimeException("Cadastral area {$code} is outside municipality {$municipalityCode}");
+            }
+            $update->execute([$wkt, $code]);
+        }
     }
 
     private function insertBatch(array $parcels): void

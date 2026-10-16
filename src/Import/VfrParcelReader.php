@@ -20,6 +20,35 @@ final class VfrParcelReader
 
     public function read(string $zipPath): Generator
     {
+        foreach ($this->elements($zipPath, 'Parcela') as $element) {
+            yield $this->parcel($element);
+        }
+    }
+
+    public function readCadastralAreaBoundaries(string $zipPath): array
+    {
+        foreach ($this->elements($zipPath, 'KatastralniUzemi') as $container) {
+            $boundaries = [];
+            foreach ($container->getElementsByTagNameNS(self::VF_NAMESPACE, 'KatastralniUzemi') as $area) {
+                $fields = $this->childrenByName($area);
+                $code = $this->int($this->required($fields, 'Kod', $area)->textContent);
+                $boundary = $this->required($fields, 'Geometrie', $area)
+                    ->getElementsByTagNameNS('*', 'OriginalniHranice')
+                    ->item(0);
+                if (!$boundary instanceof DOMElement || $boundary->firstElementChild === null) {
+                    throw new RuntimeException("Missing boundary geometry of cadastral area {$code}");
+                }
+                $boundaries[$code] = $this->gmlToWkt->multiSurface($boundary->firstElementChild);
+            }
+
+            return $boundaries;
+        }
+
+        throw new RuntimeException("No cadastral areas in {$zipPath}");
+    }
+
+    private function elements(string $zipPath, string $localName): Generator
+    {
         $uri = 'zip://' . $zipPath . '#' . basename($zipPath, '.zip');
         $previousErrorMode = libxml_use_internal_errors(true);
         $reader = new XMLReader();
@@ -33,14 +62,14 @@ final class VfrParcelReader
             $hasNode = $reader->read();
             while ($hasNode) {
                 if ($reader->nodeType === XMLReader::ELEMENT
-                    && $reader->localName === 'Parcela'
+                    && $reader->localName === $localName
                     && $reader->namespaceURI === self::VF_NAMESPACE
                 ) {
                     $element = $reader->expand($document);
                     if (!$element instanceof DOMElement) {
-                        throw new RuntimeException("Cannot expand parcel element in {$uri}");
+                        throw new RuntimeException("Cannot expand {$localName} element in {$uri}");
                     }
-                    yield $this->parcel($element);
+                    yield $element;
                     $hasNode = $reader->next();
                 } else {
                     $hasNode = $reader->read();
