@@ -44,7 +44,8 @@ php bin/warm-tiles.php            # voliteľné: predgeneruje dlaždice celého 
 PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8080 -t public public/index.php
 ```
 
-Aplikácia beží na <http://127.0.0.1:8080/>. Pohľad na mapu sa ukladá do URL (napr. `/#17/50.4363/15.3525`).
+Aplikácia beží na <http://127.0.0.1:8080/>. Pohľad na mapu aj vybraná parcela sa ukladajú do URL, takže sa dajú poslať odkazom:
+`/#map=17/50.4363/15.3525&parcel=1753220604`. Stačí aj samotné `/#parcel=1753220604`, mapa na parcelu priletí.
 
 ### Testy
 

@@ -30,6 +30,29 @@ const BASEMAPS = {
 const numberFormat = new Intl.NumberFormat('cs-CZ');
 const dateFormat = new Intl.DateTimeFormat('cs-CZ');
 
+function hashParam(name) {
+    for (const part of location.hash.slice(1).split('&')) {
+        const [key, value] = part.split('=');
+        if (key === name) {
+            return decodeURIComponent(value ?? '');
+        }
+    }
+    return null;
+}
+
+function setHashParam(name, value) {
+    const parts = location.hash.slice(1).split('&').filter((part) => part !== '' && part.split('=')[0] !== name);
+    if (value !== null) {
+        parts.push(`${name}=${encodeURIComponent(value)}`);
+    }
+    history.replaceState(history.state, '', `#${parts.join('&')}`);
+}
+
+function flyToParcel(map, bbox) {
+    const camera = map.cameraForBounds(bbox, { padding: 80, maxZoom: 18 });
+    map.flyTo({ ...camera, zoom: Math.max(camera?.zoom ?? MIN_PARCEL_ZOOM, MIN_PARCEL_ZOOM) });
+}
+
 function formatDate(isoDate) {
     const [year, month, day] = isoDate.split('-').map(Number);
     return dateFormat.format(new Date(year, month - 1, day));
@@ -59,7 +82,7 @@ function createMap() {
         fitBoundsOptions: { padding: { top: 20, bottom: 20, right: 60, left: window.innerWidth > 600 ? 280 : 20 } },
         minZoom: 8,
         maxZoom: 20,
-        hash: true,
+        hash: 'map',
         style: {
             version: 8,
             glyphs: `${location.origin}/fonts/{fontstack}/{range}.pbf`,
@@ -254,14 +277,16 @@ function createDetailPanel(map) {
         request = null;
         panel.hidden = true;
         select(NOTHING_SELECTED);
+        setHashParam('parcel', null);
     };
 
-    const open = async (id) => {
+    const open = async (id, { fly = false } = {}) => {
         request?.abort();
         const controller = new AbortController();
         request = controller;
 
         select(['==', ['id'], id]);
+        setHashParam('parcel', String(id));
         content.replaceChildren(element('p', 'Načítám…'));
         panel.hidden = false;
 
@@ -270,7 +295,11 @@ function createDetailPanel(map) {
             if (!response.ok) {
                 throw new Error(response.status === 404 ? 'Parcela nebyla nalezena.' : `Chyba serveru (${response.status}).`);
             }
-            content.replaceChildren(...renderParcel(await response.json()));
+            const parcel = await response.json();
+            content.replaceChildren(...renderParcel(parcel));
+            if (fly) {
+                flyToParcel(map, parcel.bbox);
+            }
         } catch (error) {
             if (error.name === 'AbortError') {
                 return;
@@ -457,8 +486,7 @@ async function createSearch(map, detail) {
             }
 
             const parcel = await response.json();
-            const camera = map.cameraForBounds(parcel.bbox, { padding: 80, maxZoom: 18 });
-            map.flyTo({ ...camera, zoom: Math.max(camera?.zoom ?? MIN_PARCEL_ZOOM, MIN_PARCEL_ZOOM) });
+            flyToParcel(map, parcel.bbox);
             detail.open(parcel.id);
         } catch (error) {
             console.error(error);
@@ -476,6 +504,9 @@ function init() {
         );
         return;
     }
+
+    const sharedParcel = hashParam('parcel');
+    const sharedPosition = hashParam('map') !== null;
 
     renderLegend();
     const map = createMap();
@@ -498,6 +529,11 @@ function init() {
         }
         detail.open(feature.id);
     });
+    if (sharedParcel !== null && /^\d{1,18}$/.test(sharedParcel)) {
+        map.once('load', () => detail.open(Number(sharedParcel), { fly: !sharedPosition }));
+    } else if (sharedParcel !== null) {
+        setHashParam('parcel', null);
+    }
     createSearch(map, detail);
     for (const input of document.querySelectorAll('input[name="basemap"]')) {
         input.addEventListener('change', () => {
