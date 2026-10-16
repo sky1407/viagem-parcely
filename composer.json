@@ -11,7 +11,8 @@
         "ext-libxml": "*",
         "ext-pdo_pgsql": "*",
         "ext-xmlreader": "*",
-        "ext-zip": "*"
+        "ext-zip": "*",
+        "ext-zlib": "*"
     },
     "autoload": {
         "psr-4": {

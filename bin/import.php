@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Cache\TileCache;
 use App\Database;
 use App\Import\CodeListImporter;
 use App\Import\Downloader;
@@ -67,6 +68,8 @@ try {
     }
 
     $pdo->exec('ANALYZE cadastral_area, parcel, parcel_protection');
+    (new TileCache($config['tile_cache_dir']))->clear();
+    echo "Tile cache cleared\n";
     printf("Done: %d parcels in %.1fs (VFR %s)\n", $total, microtime(true) - $started, $date);
 } catch (Throwable $e) {
     fwrite(STDERR, 'Import failed: ' . $e->getMessage() . PHP_EOL);

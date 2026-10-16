@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Cache\TileCache;
 use App\Controller\TileController;
 use App\Database;
 use App\Http\JsonResponse;
@@ -36,9 +37,10 @@ $router->get('/api/health', function () use ($connect): void {
     JsonResponse::send(['status' => 'ok', 'parcels' => $count]);
 });
 
-$router->get('/api/tiles/(?<z>\d{1,2})/(?<x>\d{1,7})/(?<y>\d{1,7})\.pbf', function (string $z, string $x, string $y) use ($connect): void {
-    $controller = new TileController(new TileRepository($connect), __DIR__ . '/../storage/tiles');
-    $controller->show((int) $z, (int) $x, (int) $y);
+$router->get('/api/tiles/(?<z>\d{1,2})/(?<x>\d{1,7})/(?<y>\d{1,7})\.pbf', function (string $z, string $x, string $y) use ($connect, $config): void {
+    $controller = new TileController(new TileRepository($connect), new TileCache($config['tile_cache_dir']));
+    $acceptsGzip = str_contains($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '', 'gzip');
+    $controller->show((int) $z, (int) $x, (int) $y, $acceptsGzip);
 });
 
 try {

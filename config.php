@@ -10,4 +10,5 @@ return [
         'user' => getenv('DB_USER') ?: 'parcels',
         'password' => getenv('DB_PASSWORD') ?: 'parcels',
     ],
+    'tile_cache_dir' => __DIR__ . '/storage/tiles',
 ];

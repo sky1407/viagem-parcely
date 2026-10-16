@@ -10,7 +10,7 @@ use RuntimeException;
 
 final class TileRepository
 {
-    public const MIN_PARCEL_ZOOM = 13;
+    public const MIN_PARCEL_ZOOM = 14;
 
     private const EXTENT = 4096;
     private const BUFFER = 64;
