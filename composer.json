@@ -5,7 +5,13 @@
     "license": "proprietary",
     "require": {
         "php": ">=8.3",
-        "ext-pdo_pgsql": "*"
+        "ext-curl": "*",
+        "ext-dom": "*",
+        "ext-iconv": "*",
+        "ext-libxml": "*",
+        "ext-pdo_pgsql": "*",
+        "ext-xmlreader": "*",
+        "ext-zip": "*"
     },
     "autoload": {
         "psr-4": {

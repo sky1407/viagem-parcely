@@ -8,6 +8,8 @@ use RuntimeException;
 
 final class Downloader
 {
+    private const ZIP_SIGNATURE = "PK\x03\x04";
+
     public function __construct(private readonly string $cacheDir)
     {
     }
@@ -49,6 +51,11 @@ final class Downloader
         if ($success === false) {
             unlink($tempPath);
             throw new RuntimeException("Download failed: {$url} ({$error})");
+        }
+
+        if (file_get_contents($tempPath, length: strlen(self::ZIP_SIGNATURE)) !== self::ZIP_SIGNATURE) {
+            unlink($tempPath);
+            throw new RuntimeException("Downloaded file is not a ZIP archive (missing on server?): {$url}");
         }
 
         if (!rename($tempPath, $path)) {
