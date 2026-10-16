@@ -9,6 +9,7 @@ use App\LazyConnection;
 final class TileRepository
 {
     public const MIN_PARCEL_ZOOM = 14;
+    private const LABEL_ZOOM = 16;
 
     private const EXTENT = 4096;
     private const BUFFER = 64;
@@ -31,6 +32,21 @@ final class TileRepository
         WHERE p.geom_3857 && b.env
     ) t WHERE t.geom IS NOT NULL)";
 
+    private const LABELED_PARCELS_LAYER = "(SELECT ST_AsMVT(t, 'parcels', %1\$d, 'geom', 'id') FROM (
+        SELECT p.id, p.land_type_code, %3\$s AS label, ST_AsMVTGeom(p.geom_3857, b.env, %1\$d, %2\$d, true) AS geom
+        FROM parcel p, bounds b
+        WHERE p.geom_3857 && b.env
+    ) t WHERE t.geom IS NOT NULL)";
+
+    private const PARCEL_LABELS_LAYER = "(SELECT ST_AsMVT(t, 'parcel_labels', %1\$d, 'geom') FROM (
+        SELECT %3\$s AS label, ST_AsMVTGeom(ST_PointOnSurface(p.geom_3857), b.env, %1\$d, 0, true) AS geom
+        FROM parcel p, bounds b
+        WHERE p.geom_3857 && b.env
+    ) t WHERE t.geom IS NOT NULL)";
+
+    private const PARCEL_LABEL = "(CASE WHEN p.numbering_type = 1 THEN 'st. ' ELSE '' END
+        || p.stem_number || COALESCE('/' || p.subdivision_number, ''))";
+
     public function __construct(private readonly LazyConnection $connection)
     {
     }
@@ -38,7 +54,9 @@ final class TileRepository
     public function tile(int $z, int $x, int $y): string
     {
         $layers = [self::DISTRICT_LAYER, self::CADASTRAL_AREAS_LAYER];
-        if ($z >= self::MIN_PARCEL_ZOOM) {
+        if ($z >= self::LABEL_ZOOM) {
+            array_push($layers, self::LABELED_PARCELS_LAYER, self::PARCEL_LABELS_LAYER);
+        } elseif ($z >= self::MIN_PARCEL_ZOOM) {
             $layers[] = self::PARCELS_LAYER;
         }
 
@@ -46,6 +64,7 @@ final class TileRepository
             'WITH bounds AS (SELECT ST_TileEnvelope(?, ?, ?) AS env) SELECT ' . implode(' || ', $layers),
             self::EXTENT,
             self::BUFFER,
+            self::PARCEL_LABEL,
         );
 
         $statement = $this->connection->get()->prepare($sql);
