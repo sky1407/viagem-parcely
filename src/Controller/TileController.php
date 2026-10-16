@@ -10,15 +10,13 @@ use RuntimeException;
 
 final class TileController
 {
-    private const MAX_ZOOM = 22;
-
     public function __construct(private readonly TileService $tiles)
     {
     }
 
     public function show(int $z, int $x, int $y, bool $acceptsGzip): void
     {
-        if ($z > self::MAX_ZOOM || $x >= 2 ** $z || $y >= 2 ** $z) {
+        if ($z > TileService::MAX_ZOOM || $x >= 2 ** $z || $y >= 2 ** $z) {
             JsonResponse::error('Tile out of range', 404);
             return;
         }

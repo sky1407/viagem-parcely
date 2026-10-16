@@ -10,6 +10,8 @@ use RuntimeException;
 
 final class TileService
 {
+    public const MAX_ZOOM = 16;
+
     public function __construct(
         private readonly TileRepository $tiles,
         private readonly TileCache $cache,

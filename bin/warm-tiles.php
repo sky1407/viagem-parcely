@@ -10,7 +10,7 @@ use App\Service\TileService;
 require __DIR__ . '/../vendor/autoload.php';
 
 const DEFAULT_MIN_ZOOM = 8;
-const DEFAULT_MAX_ZOOM = 16;
+const DEFAULT_MAX_ZOOM = TileService::MAX_ZOOM;
 const DEFAULT_WORKERS = 6;
 
 function intOption(array $options, string $name, int $default, int $min, int $max): int
