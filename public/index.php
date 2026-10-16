@@ -43,8 +43,8 @@ $router->get('/', function (): void {
 });
 
 $router->get('/api/health', function () use ($connect): void {
-    $count = (int) $connect()->query('SELECT count(*) FROM parcel')->fetchColumn();
-    JsonResponse::send(['status' => 'ok', 'parcels' => $count]);
+    $estimate = (int) $connect()->query("SELECT reltuples::bigint FROM pg_class WHERE oid = 'parcel'::regclass")->fetchColumn();
+    JsonResponse::send(['status' => 'ok', 'parcels_estimate' => $estimate]);
 });
 
 $router->get('/api/tiles/(?<z>\d{1,2})/(?<x>\d{1,7})/(?<y>\d{1,7})\.pbf', function (string $z, string $x, string $y) use ($connect, $config): void {

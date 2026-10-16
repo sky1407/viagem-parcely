@@ -104,7 +104,7 @@ Pri nasadení s PHP serverom (Caddy/FrankenPHP, nginx, Apache) musia všetky po�
 | `GET /api/parcels/{id}` | detail parcely (JSON) |
 | `GET /api/parcels/search?cadastral_area={kód}&number={číslo}` | `{id, bbox}` nájdenej parcely; číslo vo formáte `st. 12/3`, `791/34`, `15` |
 | `GET /api/cadastral-areas` | zoznam KÚ okresu pre našepkávač |
-| `GET /api/health` | stav aplikácie a počet parciel |
+| `GET /api/health` | stav aplikácie a odhad počtu parciel zo štatistík DB (bez prechodu tabuľkou) |
 
 Chyby majú tvar `{"error": "..."}` s kódom 400, 404, 405 alebo 500. Pri chybe 500 sa detail zapíše iba do logu servera.
 

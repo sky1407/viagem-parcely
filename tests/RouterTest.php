@@ -53,6 +53,19 @@ final class RouterTest extends TestCase
         self::assertSame(['search'], $called);
     }
 
+    public function testHeadRequestUsesGetRoute(): void
+    {
+        $called = false;
+        $router = new Router();
+        $router->get('/api/health', function () use (&$called): void {
+            $called = true;
+        });
+
+        $router->dispatch('HEAD', '/api/health');
+
+        self::assertTrue($called);
+    }
+
     public function testPatternIsAnchored(): void
     {
         $router = new Router();

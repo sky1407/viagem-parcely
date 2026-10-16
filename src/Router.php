@@ -24,8 +24,8 @@ final class Router
             if (preg_match($regex, $path, $matches) !== 1) {
                 continue;
             }
-            if ($routeMethod !== $method) {
-                $allowedMethods[] = $routeMethod;
+            if ($routeMethod !== $method && !($method === 'HEAD' && $routeMethod === 'GET')) {
+                array_push($allowedMethods, ...($routeMethod === 'GET' ? ['GET', 'HEAD'] : [$routeMethod]));
                 continue;
             }
 
