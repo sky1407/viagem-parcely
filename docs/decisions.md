@@ -213,6 +213,48 @@ povolenie neobmedzenej dĺžky čísla parcely testy zachytili.
 PostGIS ju načíta ako 0, ale výstup nebol kanonický. Všetky súradnice teraz prechádzajú jednou formátovacou
 metódou. Po oprave som zopakoval celý import: 271 995 parciel, 0 nevalidných.
 
+## 20. Nasadenie: Docker image s FrankenPHP na Renderi
+
+**Možnosti**
+- **Vercel:** nemá natívne PHP ani PostgreSQL a disk je dočasný, takže cache dlaždíc by nefungovala.
+- **PaaS s Dockerom (Render, Railway).**
+- **Vlastný VPS.**
+- **Tunel z lokálneho PC.**
+
+**Voľba:** Render, ktorý ponúka zadarmo web service z Dockerfile aj PostgreSQL s PostGIS.
+Infraštruktúra je popísaná v `render.yaml`.
+
+- **Server:** FrankenPHP (Caddy so vstavaným PHP) v jednom kontajneri.
+  - Statické súbory servíruje sám a odpovede komprimuje (zstd/gzip).
+  - Port berie z premennej `PORT`, ktorú PaaS nastavuje.
+  - Tým odpadol rozdiel medzi `php -S` lokálne a nginx v produkcii.
+  - Rovnaký image beží aj v `docker compose`, takže na spustenie stačí Docker.
+- **Konfigurácia:** `config.php` číta okrem `DB_*` aj `DATABASE_URL`, ktorý PaaS poskytuje ako jednu premennú.
+- **Dáta:** import sa na serveri nespúšťa. Lokálna DB sa prenesie cez `pg_dump`/`pg_restore` (dump má 29 MB).
+
+**Úskalia pri nasadení**
+- **`exec: frankenphp: Operation not permitted`:**
+  - Binárka FrankenPHP má capability `cap_net_bind_service` (port 80 bez roota) a Render spúšťa kontajnery bez práva spúšťať takéto programy.
+  - Chybu som lokálne zreprodukoval cez `docker run --cap-drop ALL`.
+  - Oprava: `setcap -r` (port je nad 1024, capability netreba) a beh pod neprivilegovaným používateľom.
+- **Zdedený HEALTHCHECK** z base image sa pýtal admin API Caddy, ktoré je vypnuté, a kontajner sa hlásil ako `unhealthy`. Healthcheck teraz volá priamo aplikáciu.
+- **Prerušený prenos dát:**
+  - Prvý pokus (dump posielaný cez rúru priamo do vzdialenej DB) sa prerušil v polovici.
+  - Druhý zlyhal na schéme `tiger`, ktorú lokálny image `postgis/postgis` zakladá a Render ju už má.
+  - Riešenie: dump do súboru a obnova iba objektov schémy `public` (`pg_restore -L`), 4 paralelné úlohy, ~2 min.
+  - Overenie: počty riadkov aj indexy zhodné s lokálnou DB.
+
+**Namerané na free pláne** (z ČR do Frankfurtu):
+
+| | čas |
+|---|---|
+| dlaždica pri prvom vygenerovaní | 0,8–1,8 s |
+| dlaždica z cache | 70–180 ms |
+| detail parcely | ~0,6 s |
+
+Pomalé CPU a DB na free pláne potvrdzujú, že predgenerovanie dlaždíc pri štarte (`WARM_TILES=1`) je tu dôležitejšie ako lokálne.
+Free web sa po 15 minútach nečinnosti uspí a disk nie je trvalý, preto sa cache po prebudení generuje znova.
+
 ## Známe obmedzenia a ďalšie kroky
 
 - **Integračné testy API** (s testovacou DB) chýbajú. Endpointy som overoval ručne cez `curl` vrátane chybových stavov.

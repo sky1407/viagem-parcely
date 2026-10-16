@@ -9,6 +9,9 @@ Webová aplikácia, ktorá na mape zobrazuje všetky parcely katastra nehnuteľn
 - Podklad sa dá prepnúť medzi OpenStreetMap a ortofotom ČÚZK.
 
 Backend je čisté PHP bez frameworku, dáta sú v PostgreSQL/PostGIS a frontend používa MapLibre GL JS bez build kroku.
+
+**Živá ukážka:** <https://viagem-parcely.onrender.com>. Beží na free pláne Renderu: po 15 minútach nečinnosti sa uspí
+a prvé načítanie potom trvá asi minútu.
 Rozhodnutia aj s nameranými číslami sú v [zápisníku rozhodnutí](docs/decisions.md).
 
 ## Predpoklady
@@ -77,11 +80,14 @@ Na prezeranie databázy je k dispozícii voliteľný pgAdmin: `docker compose --
 [render.yaml](render.yaml) popisuje web service z [Dockerfile](Dockerfile) (FrankenPHP, Frankfurt) a PostgreSQL 17.
 
 1. V Render Dashboarde zvoľte **New → Blueprint** a vyberte tento repozitár.
-2. Po vytvorení databázy nahrajte dáta z lokálnej DB. External Database URL nájdete v Renderi v sekcii databázy → Connect:
+2. Po vytvorení databázy nahrajte dáta z lokálnej DB. External Database URL nájdete v Renderi v sekcii databázy → Connect.
+   Obnovujú sa iba objekty schémy `public`, lebo schémy geokódera (`tiger`, `topology`) už Render má:
 
    ```bash
-   docker compose exec -T db pg_dump -U parcels -d parcels -Fc --no-owner --no-acl \
-     | docker compose exec -T -e URL="<External Database URL>" db sh -c 'pg_restore --no-owner --no-acl --exit-on-error -d "$URL"'
+   docker compose exec -T -e URL="<External Database URL>?sslmode=require" db sh -c '
+     pg_dump -U parcels -d parcels -Fc --no-owner --no-acl -f /tmp/parcels.dump &&
+     pg_restore -l /tmp/parcels.dump | grep -E " (TABLE|MATERIALIZED VIEW|INDEX|CONSTRAINT|FK CONSTRAINT|TABLE DATA|MATERIALIZED VIEW DATA|SEQUENCE) public " | grep -v spatial_ref_sys > /tmp/public.list &&
+     pg_restore --no-owner --no-acl --exit-on-error -j 4 -L /tmp/public.list -d "$URL" /tmp/parcels.dump'
    ```
 
 3. Aplikácia pri štarte predgeneruje dlaždice (`WARM_TILES=1`). Disk na Renderi nie je trvalý, preto sa cache po reštarte vytvorí znova.
