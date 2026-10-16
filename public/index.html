@@ -15,6 +15,10 @@
     <ul id="legend-items"></ul>
     <p id="zoom-hint" class="hint">Přibližte mapu pro zobrazení parcel</p>
 </aside>
+<aside id="detail" class="detail" aria-live="polite" hidden>
+    <button type="button" id="detail-close" class="close" aria-label="Zavřít">&times;</button>
+    <div id="detail-content"></div>
+</aside>
 <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"
         integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp" crossorigin="anonymous"></script>
 <script src="app.js"></script>

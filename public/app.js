@@ -16,6 +16,10 @@ const LAND_TYPES = [
     [14, 'ostatní plocha', '#d6d1c4'],
 ];
 const UNKNOWN_LAND_TYPE_COLOR = '#bbbbbb';
+const NO_SELECTION = -1;
+
+const numberFormat = new Intl.NumberFormat('cs-CZ');
+const dateFormat = new Intl.DateTimeFormat('cs-CZ');
 
 function renderLegend() {
     const list = document.getElementById('legend-items');
@@ -82,6 +86,15 @@ function createMap() {
                     },
                 },
                 {
+                    id: 'parcels-selected',
+                    type: 'line',
+                    source: 'cadastre',
+                    'source-layer': 'parcels',
+                    minzoom: MIN_PARCEL_ZOOM,
+                    filter: ['==', ['id'], NO_SELECTION],
+                    paint: { 'line-color': '#1f5fbf', 'line-width': 3 },
+                },
+                {
                     id: 'cadastral-areas-line',
                     type: 'line',
                     source: 'cadastre',
@@ -94,6 +107,98 @@ function createMap() {
             ],
         },
     });
+}
+
+function element(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text !== undefined) {
+        node.textContent = text;
+    }
+    if (className !== undefined) {
+        node.className = className;
+    }
+    return node;
+}
+
+function renderParcel(parcel) {
+    const rows = [
+        ['Katastrální území', `${parcel.cadastral_area.name} (${parcel.cadastral_area.code})`],
+        ['Obec', parcel.municipality.name],
+        ['Výměra', `${numberFormat.format(parcel.area_m2)} m²`],
+        ['Druh pozemku', parcel.land_type],
+        ['Způsob využití', parcel.land_use ?? '—'],
+        ['Platí od', dateFormat.format(new Date(parcel.valid_from))],
+    ];
+
+    const list = element('dl');
+    for (const [label, value] of rows) {
+        list.append(element('dt', label), element('dd', value));
+    }
+
+    const protections = element('dd');
+    if (parcel.protections.length === 0) {
+        protections.textContent = '—';
+    } else {
+        const items = element('ul');
+        for (const name of parcel.protections) {
+            items.append(element('li', name));
+        }
+        protections.append(items);
+    }
+    list.append(element('dt', 'Ochrana'), protections);
+
+    const link = element('a', 'Otevřít v Nahlížení do KN');
+    link.href = parcel.cadastre_url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+
+    return [element('h2', `Parcela ${parcel.number}`), list, link];
+}
+
+function createDetailPanel(map) {
+    const panel = document.getElementById('detail');
+    const content = document.getElementById('detail-content');
+    let request = null;
+
+    const close = () => {
+        request?.abort();
+        request = null;
+        panel.hidden = true;
+        map.setFilter('parcels-selected', ['==', ['id'], NO_SELECTION]);
+    };
+
+    const open = async (id) => {
+        request?.abort();
+        const controller = new AbortController();
+        request = controller;
+
+        map.setFilter('parcels-selected', ['==', ['id'], id]);
+        content.replaceChildren(element('p', 'Načítám…'));
+        panel.hidden = false;
+
+        try {
+            const response = await fetch(`/api/parcels/${encodeURIComponent(id)}`, { signal: controller.signal });
+            if (!response.ok) {
+                throw new Error(response.status === 404 ? 'Parcela nebyla nalezena.' : `Chyba serveru (${response.status}).`);
+            }
+            content.replaceChildren(...renderParcel(await response.json()));
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                return;
+            }
+            console.error(error);
+            content.replaceChildren(element('p', error.message || 'Detail se nepodařilo načíst.', 'status-error'));
+        }
+    };
+
+    document.getElementById('detail-close').addEventListener('click', close);
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            close();
+        }
+    });
+
+    return { open, close };
 }
 
 function init() {
@@ -116,6 +221,22 @@ function init() {
     };
     map.on('zoomend', updateHint);
     updateHint();
+
+    const detail = createDetailPanel(map);
+    map.on('click', (event) => {
+        const [feature] = map.queryRenderedFeatures(event.point, { layers: ['parcels-fill'] });
+        if (feature?.id === undefined) {
+            detail.close();
+            return;
+        }
+        detail.open(feature.id);
+    });
+    map.on('mouseenter', 'parcels-fill', () => {
+        map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', 'parcels-fill', () => {
+        map.getCanvas().style.cursor = '';
+    });
 
     map.on('error', (event) => console.error(event.error));
 }
