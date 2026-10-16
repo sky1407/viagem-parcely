@@ -272,7 +272,7 @@ async function createSearch(map, detail) {
     const button = form.querySelector('button');
     const status = document.getElementById('search-status');
     const areas = new Map();
-    const areaKey = (name) => name.trim().toLocaleLowerCase('cs');
+    const areaKey = (name) => name.normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toLocaleLowerCase('cs');
 
     const showStatus = (message) => {
         status.textContent = message;
