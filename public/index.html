@@ -14,8 +14,11 @@
     <form id="search" class="panel search" autocomplete="off">
         <h2>Hledat parcelu</h2>
         <label for="search-area">Katastrální území</label>
-        <input id="search-area" list="cadastral-areas" placeholder="např. Jičín" required>
-        <datalist id="cadastral-areas"></datalist>
+        <div class="combobox">
+            <input id="search-area" role="combobox" aria-autocomplete="list" aria-expanded="false"
+                   aria-controls="area-suggestions" placeholder="např. Jičín" required>
+            <ul id="area-suggestions" class="suggestions" role="listbox" aria-label="Katastrální území" hidden></ul>
+        </div>
         <label for="search-number">Číslo parcely</label>
         <input id="search-number" placeholder="např. st. 1 nebo 791/34" required>
         <button type="submit">Najít</button>

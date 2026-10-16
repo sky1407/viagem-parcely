@@ -16,7 +16,8 @@ const LAND_TYPES = [
     [14, 'ostatní plocha', '#d6d1c4'],
 ];
 const UNKNOWN_LAND_TYPE_COLOR = '#bbbbbb';
-const NOTHING_SELECTED = ['==', ['id'], -1];
+const MAX_SUGGESTIONS = 8;
+const NOTHING_SELECTED =['==', ['id'], -1];
 const SELECTION_LAYERS = ['parcels-selected-fill', 'parcels-selected-casing', 'parcels-selected-line'];
 const SELECTION_COLOR = '#00b4ff';
 const DISTRICT_COLOR = '#ff00a8';
@@ -265,6 +266,117 @@ function createDetailPanel(map) {
     return { open, close };
 }
 
+function withoutDiacritics(text) {
+    return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('cs');
+}
+
+function searchKey(text) {
+    return withoutDiacritics(text).trim();
+}
+
+function highlightMatch(name, query) {
+    const key = withoutDiacritics(name);
+    const start = key.indexOf(query);
+    if (start === -1 || key.length !== name.length) {
+        return [name];
+    }
+    const end = start + query.length;
+    return [name.slice(0, start), element('mark', name.slice(start, end)), name.slice(end)];
+}
+
+function createAreaAutocomplete(input, list, areas, onChoose) {
+    const entries = areas.map((area) => ({ area, key: searchKey(area.name) }));
+    let matches = [];
+    let active = -1;
+
+    const setActive = (index) => {
+        active = index;
+        for (const [i, item] of [...list.children].entries()) {
+            item.setAttribute('aria-selected', String(i === index));
+        }
+        if (index === -1) {
+            input.removeAttribute('aria-activedescendant');
+            return;
+        }
+        input.setAttribute('aria-activedescendant', list.children[index].id);
+        list.children[index].scrollIntoView({ block: 'nearest' });
+    };
+
+    const close = () => {
+        matches = [];
+        setActive(-1);
+        list.hidden = true;
+        input.setAttribute('aria-expanded', 'false');
+    };
+
+    const choose = (area) => {
+        input.value = area.name;
+        close();
+        onChoose(area);
+    };
+
+    const render = () => {
+        const query = searchKey(input.value);
+        if (query === '') {
+            close();
+            return;
+        }
+
+        matches = entries
+            .filter((entry) => entry.key.includes(query))
+            .sort((a, b) => Number(!a.key.startsWith(query)) - Number(!b.key.startsWith(query)))
+            .slice(0, MAX_SUGGESTIONS)
+            .map((entry) => entry.area);
+
+        const items = matches.map((area, index) => {
+            const item = element('li');
+            item.id = `area-option-${index}`;
+            item.setAttribute('role', 'option');
+            item.append(...highlightMatch(area.name, query));
+            if (area.municipality !== area.name) {
+                item.append(element('small', `obec ${area.municipality}`));
+            }
+            item.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+                choose(area);
+            });
+            return item;
+        });
+        if (items.length === 0) {
+            items.push(element('li', 'Žádné katastrální území neodpovídá', 'empty'));
+        }
+
+        list.replaceChildren(...items);
+        list.hidden = false;
+        input.setAttribute('aria-expanded', 'true');
+        setActive(matches.length > 0 ? 0 : -1);
+    };
+
+    input.addEventListener('input', render);
+    input.addEventListener('blur', close);
+    input.addEventListener('keydown', (event) => {
+        if (list.hidden) {
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                render();
+            }
+            return;
+        }
+
+        if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && matches.length > 0) {
+            event.preventDefault();
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            setActive((active + step + matches.length) % matches.length);
+        } else if (event.key === 'Enter' && active !== -1) {
+            event.preventDefault();
+            choose(matches[active]);
+        } else if (event.key === 'Escape') {
+            event.stopPropagation();
+            close();
+        }
+    });
+}
+
 async function createSearch(map, detail) {
     const form = document.getElementById('search');
     const areaInput = document.getElementById('search-area');
@@ -272,7 +384,6 @@ async function createSearch(map, detail) {
     const button = form.querySelector('button');
     const status = document.getElementById('search-status');
     const areas = new Map();
-    const areaKey = (name) => name.normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toLocaleLowerCase('cs');
 
     const showStatus = (message) => {
         status.textContent = message;
@@ -284,17 +395,11 @@ async function createSearch(map, detail) {
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        const options = document.createDocumentFragment();
-        for (const area of await response.json()) {
-            areas.set(areaKey(area.name), area);
-            const option = element('option');
-            option.value = area.name;
-            if (area.municipality !== area.name) {
-                option.label = `obec ${area.municipality}`;
-            }
-            options.append(option);
+        const list = await response.json();
+        for (const area of list) {
+            areas.set(searchKey(area.name), area);
         }
-        document.getElementById('cadastral-areas').append(options);
+        createAreaAutocomplete(areaInput, document.getElementById('area-suggestions'), list, () => numberInput.focus());
     } catch (error) {
         console.error(error);
         showStatus('Seznam katastrálních území se nepodařilo načíst.');
@@ -304,7 +409,7 @@ async function createSearch(map, detail) {
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const area = areas.get(areaKey(areaInput.value));
+        const area = areas.get(searchKey(areaInput.value));
         if (area === undefined) {
             showStatus('Vyberte katastrální území ze seznamu.');
             return;

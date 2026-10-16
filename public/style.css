@@ -54,6 +54,66 @@ html, body {
     border-radius: 4px;
 }
 
+.combobox {
+    position: relative;
+}
+
+.combobox input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.suggestions {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    max-height: 260px;
+    margin: 0;
+    padding: 4px 0;
+    overflow-y: auto;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.suggestions[hidden] {
+    display: none;
+}
+
+.suggestions li {
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+.suggestions li[aria-selected="true"],
+.suggestions li:hover {
+    background: #e3edfb;
+}
+
+.suggestions mark {
+    background: none;
+    font-weight: 700;
+    color: inherit;
+}
+
+.suggestions small {
+    display: block;
+    color: #666;
+}
+
+.suggestions .empty {
+    color: #666;
+    cursor: default;
+}
+
+.suggestions .empty:hover {
+    background: none;
+}
+
 .search button {
     margin-top: 6px;
     padding: 6px;

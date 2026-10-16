@@ -180,6 +180,11 @@ odolná (`!is_dir() && !mkdir() && !is_dir()`), warning som potlačil iba na tom
   - zaručí, že sa číslo parcely v KÚ neopakuje (`NULLS NOT DISTINCT` je nutné, lebo poddelenie býva `NULL`);
   - nahradil starší index na `cadastral_area_code`, lebo jeho prvý stĺpec pokrýva aj mazanie pri importe.
 - Dotaz má dve podoby (`subdivision_number IS NULL` / `= ?`). Kratší zápis `IS NOT DISTINCT FROM ?` by index nepoužil.
+- **Našepkávač KÚ je vlastný, nie natívny `<datalist>`.** Datalist filtruje podľa presného textu, takže pri „jicin“
+  „Jičín“ neponúkne, a v každom prehliadači vyzerá inak. Vlastný ARIA combobox:
+  - porovnáva bez diakritiky a podľa ľubovoľnej časti názvu, pričom zhody na začiatku názvu idú prvé;
+  - zvýrazní zhodu a ovláda sa šípkami, Enterom a Escape.
+  - Overil som, že žiadne dve zo 240 KÚ po odstránení diakritiky nesplynú.
 - Po nájdení mapa priletí na parcelu a otvorí detail. Zoom je zdola obmedzený na 14, aby boli parcely vidieť aj pri veľkých lesných a poľných parcelách.
 
 ## 18. Ortofoto ČÚZK ako alternatívny podklad
