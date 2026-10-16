@@ -81,6 +81,8 @@ Na prezeranie databázy je k dispozícii voliteľný pgAdmin: `docker compose --
 
 1. V Render Dashboarde zvoľte **New → Blueprint** a vyberte tento repozitár.
 2. Po vytvorení databázy nahrajte dáta z lokálnej DB. External Database URL nájdete v Renderi v sekcii databázy → Connect.
+   Databáza je predvolene dostupná iba z internej siete Renderu (`ipAllowList: []`). Na nahranie dát dočasne pridajte
+   svoju IP v sekcii databázy → Networking → PostgreSQL Inbound IP Rules.
    Obnovujú sa iba objekty schémy `public`, lebo schémy geokódera (`tiger`, `topology`) už Render má:
 
    ```bash
