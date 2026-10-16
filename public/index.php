@@ -10,6 +10,7 @@ use App\Http\JsonResponse;
 use App\Repository\ParcelRepository;
 use App\Repository\TileRepository;
 use App\Router;
+use App\Service\TileService;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 if (!is_string($path)) {
@@ -47,7 +48,9 @@ $router->get('/api/health', function () use ($connect): void {
 });
 
 $router->get('/api/tiles/(?<z>\d{1,2})/(?<x>\d{1,7})/(?<y>\d{1,7})\.pbf', function (string $z, string $x, string $y) use ($connect, $config): void {
-    $controller = new TileController(new TileRepository($connect), new TileCache($config['tile_cache_dir']));
+    $controller = new TileController(
+        new TileService(new TileRepository($connect), new TileCache($config['tile_cache_dir'])),
+    );
     $acceptsGzip = str_contains($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '', 'gzip');
     $controller->show((int) $z, (int) $x, (int) $y, $acceptsGzip);
 });
