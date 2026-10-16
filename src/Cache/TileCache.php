@@ -27,7 +27,7 @@ final class TileCache
     {
         $path = $this->path($z, $x, $y);
         $dir = dirname($path);
-        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
             throw new RuntimeException("Cannot create directory {$dir}");
         }
 

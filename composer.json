@@ -9,6 +9,7 @@
         "ext-dom": "*",
         "ext-iconv": "*",
         "ext-libxml": "*",
+        "ext-pcntl": "*",
         "ext-pdo_pgsql": "*",
         "ext-xmlreader": "*",
         "ext-zip": "*",
