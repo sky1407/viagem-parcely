@@ -21,6 +21,8 @@ const MAX_SUGGESTIONS = 8;
 const COPY_FEEDBACK_MS = 1500;
 const MOBILE_QUERY = '(max-width: 600px)';
 const MAP_MARGIN = 40;
+const LOADING_DELAY_MS = 300;
+const ERROR_VISIBLE_MS = 6000;
 const NOTHING_SELECTED = ['==', ['id'], -1];
 const SELECTION_LAYERS = ['parcels-selected-fill', 'parcels-selected-casing', 'parcels-selected-line'];
 const SELECTION_COLOR = '#00b4ff';
@@ -579,6 +581,48 @@ async function createSearch(map, detail) {
     });
 }
 
+function enableMapStatus(map) {
+    const status = document.getElementById('map-status');
+    let loadingTimer = null;
+    let errorTimer = null;
+
+    const show = (message, isError) => {
+        status.textContent = message;
+        status.classList.toggle('status-error', isError);
+        status.hidden = false;
+    };
+
+    map.on('sourcedataloading', (event) => {
+        if (event.sourceId !== 'cadastre' || loadingTimer !== null || errorTimer !== null) {
+            return;
+        }
+        loadingTimer = setTimeout(() => show('Načítám parcely…', false), LOADING_DELAY_MS);
+    });
+
+    map.on('idle', () => {
+        clearTimeout(loadingTimer);
+        loadingTimer = null;
+        if (errorTimer === null) {
+            status.hidden = true;
+        }
+    });
+
+    map.on('error', (event) => {
+        console.error(event.error);
+        if (event.sourceId !== 'cadastre') {
+            return;
+        }
+        clearTimeout(loadingTimer);
+        loadingTimer = null;
+        clearTimeout(errorTimer);
+        show('Data parcel se nepodařilo načíst. Zkuste to prosím později.', true);
+        errorTimer = setTimeout(() => {
+            errorTimer = null;
+            status.hidden = true;
+        }, ERROR_VISIBLE_MS);
+    });
+}
+
 function enableHover(map) {
     const tooltip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'parcel-tooltip', offset: 14 });
     let hovered = null;
@@ -672,7 +716,7 @@ function init() {
     }
     enableHover(map);
 
-    map.on('error', (event) => console.error(event.error));
+    enableMapStatus(map);
 }
 
 init();
