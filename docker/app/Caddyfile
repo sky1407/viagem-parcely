@@ -1,5 +1,7 @@
 {
-	frankenphp
+	frankenphp {
+		num_threads {$PHP_THREADS:8}
+	}
 	auto_https off
 	admin off
 }
@@ -7,5 +9,6 @@
 :{$PORT:8080} {
 	root * /app/public
 	encode zstd gzip
+	rewrite / /index.html
 	php_server
 }

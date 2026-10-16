@@ -249,6 +249,16 @@ Infraštruktúra je popísaná v `render.yaml`.
   - Riešenie: dump do súboru a obnova iba objektov schémy `public` (`pg_restore -L`), 4 paralelné úlohy, ~2 min.
   - Overenie: počty riadkov aj indexy zhodné s lokálnou DB.
 
+- **Výpadky (502) po nasadení:**
+  - Render hlásil „HTTP health check failed (timed out after 5 seconds)“. Health check volal `/` a túto stránku vracalo PHP.
+  - FrankenPHP mal na free inštancii iba 2 PHP vlákna. Tie obsadili dlaždice, ktoré na pomalej DB (počas predgenerovania) trvali sekundy, takže health check čakal v rade.
+  - Chybu som lokálne zreprodukoval zamknutím tabuľky `parcel`: `/` odpovedal za 13,4 s.
+  - Oprava:
+    - Caddy vracia `/` ako statický `index.html` bez PHP. Health check teraz dokazuje, že beží server, a nezávisí od DB.
+    - 8 PHP vlákien, pretože dlaždice čakajú na DB, nie na CPU.
+    - Predgenerovanie na Renderi 1 procesom.
+  - Po oprave `/` pri zamknutej DB odpovedá za 4 ms.
+
 **Namerané na free pláne** (z ČR do Frankfurtu):
 
 | | čas |

@@ -13,7 +13,7 @@ services:
       - key: WARM_TILES
         value: "1"
       - key: WARM_WORKERS
-        value: "2"
+        value: "1"
       - key: WARM_MAX_ZOOM
         value: "14"
 
