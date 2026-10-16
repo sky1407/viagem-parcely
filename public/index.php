@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Cache\TileCache;
+use App\Controller\ParcelController;
 use App\Controller\TileController;
 use App\Database;
 use App\Http\JsonResponse;
+use App\Repository\ParcelRepository;
 use App\Repository\TileRepository;
 use App\Router;
 
@@ -48,6 +50,11 @@ $router->get('/api/tiles/(?<z>\d{1,2})/(?<x>\d{1,7})/(?<y>\d{1,7})\.pbf', functi
     $controller = new TileController(new TileRepository($connect), new TileCache($config['tile_cache_dir']));
     $acceptsGzip = str_contains($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '', 'gzip');
     $controller->show((int) $z, (int) $x, (int) $y, $acceptsGzip);
+});
+
+$router->get('/api/parcels/(?<id>\d{1,18})', function (string $id) use ($connect): void {
+    $controller = new ParcelController(new ParcelRepository($connect));
+    $controller->show((int) $id);
 });
 
 try {
