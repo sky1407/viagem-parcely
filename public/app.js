@@ -17,6 +17,10 @@ const LAND_TYPES = [
 ];
 const UNKNOWN_LAND_TYPE_COLOR = '#bbbbbb';
 const NO_SELECTION = -1;
+const BASEMAPS = {
+    osm: { parcelOpacity: 0.55 },
+    orthophoto: { parcelOpacity: 0.2 },
+};
 
 const numberFormat = new Intl.NumberFormat('cs-CZ');
 const dateFormat = new Intl.DateTimeFormat('cs-CZ');
@@ -57,6 +61,13 @@ function createMap() {
                     maxzoom: 19,
                     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
                 },
+                orthophoto: {
+                    type: 'raster',
+                    tiles: ['https://ags.cuzk.gov.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer/tile/{z}/{y}/{x}'],
+                    tileSize: 256,
+                    maxzoom: 20,
+                    attribution: '© <a href="https://cuzk.gov.cz">ČÚZK</a> ortofoto',
+                },
                 cadastre: {
                     type: 'vector',
                     tiles: [`${location.origin}/api/tiles/{z}/{x}/{y}.pbf`],
@@ -66,13 +77,14 @@ function createMap() {
             },
             layers: [
                 { id: 'osm', type: 'raster', source: 'osm' },
+                { id: 'orthophoto', type: 'raster', source: 'orthophoto', layout: { visibility: 'none' } },
                 {
                     id: 'parcels-fill',
                     type: 'fill',
                     source: 'cadastre',
                     'source-layer': 'parcels',
                     minzoom: MIN_PARCEL_ZOOM,
-                    paint: { 'fill-color': landTypeColor, 'fill-opacity': 0.55 },
+                    paint: { 'fill-color': landTypeColor, 'fill-opacity': BASEMAPS.osm.parcelOpacity },
                 },
                 {
                     id: 'parcels-line',
@@ -307,6 +319,14 @@ function init() {
         detail.open(feature.id);
     });
     createSearch(map, detail);
+    for (const input of document.querySelectorAll('input[name="basemap"]')) {
+        input.addEventListener('change', () => {
+            for (const id of Object.keys(BASEMAPS)) {
+                map.setLayoutProperty(id, 'visibility', id === input.value ? 'visible' : 'none');
+            }
+            map.setPaintProperty('parcels-fill', 'fill-opacity', BASEMAPS[input.value].parcelOpacity);
+        });
+    }
     map.on('mouseenter', 'parcels-fill', () => {
         map.getCanvas().style.cursor = 'pointer';
     });

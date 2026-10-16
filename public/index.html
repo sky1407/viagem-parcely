@@ -21,6 +21,11 @@
         <button type="submit">Najít</button>
         <p id="search-status" class="status-error" hidden></p>
     </form>
+    <div class="panel basemap" role="radiogroup" aria-labelledby="basemap-title">
+        <h2 id="basemap-title">Podkladová mapa</h2>
+        <label><input type="radio" name="basemap" value="osm" checked> OpenStreetMap</label>
+        <label><input type="radio" name="basemap" value="orthophoto"> Ortofoto ČÚZK</label>
+    </div>
     <aside class="panel legend">
         <h2>Druh pozemku</h2>
         <ul id="legend-items"></ul>

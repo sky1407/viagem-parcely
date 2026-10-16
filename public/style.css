@@ -32,6 +32,11 @@ html, body {
     font-size: 14px;
 }
 
+.basemap label {
+    display: block;
+    cursor: pointer;
+}
+
 .search {
     display: flex;
     flex-direction: column;
