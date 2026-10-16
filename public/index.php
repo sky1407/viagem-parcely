@@ -19,15 +19,8 @@ if (!is_string($path)) {
     $path = '/';
 }
 
-if (PHP_SAPI === 'cli-server') {
-    if ($path === '/') {
-        header('Content-Type: text/html; charset=utf-8');
-        readfile(__DIR__ . '/index.html');
-        return;
-    }
-    if (is_file(__DIR__ . $path)) {
-        return false;
-    }
+if (PHP_SAPI === 'cli-server' && $path !== '/' && is_file(__DIR__ . $path)) {
+    return false;
 }
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -43,6 +36,11 @@ $connect = function () use ($config): PDO {
 };
 
 $router = new Router();
+
+$router->get('/', function (): void {
+    header('Content-Type: text/html; charset=utf-8');
+    readfile(__DIR__ . '/index.html');
+});
 
 $router->get('/api/health', function () use ($connect): void {
     $count = (int) $connect()->query('SELECT count(*) FROM parcel')->fetchColumn();
