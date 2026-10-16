@@ -16,6 +16,22 @@ services:
       timeout: 3s
       retries: 10
 
+  app:
+    build: .
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-parcels}
+      DB_USER: ${DB_USER:-parcels}
+      DB_PASSWORD: ${DB_PASSWORD:-parcels}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - app-storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
   pgadmin:
     image: dpage/pgadmin4:9.8
     profiles: ["tools"]
@@ -32,5 +48,6 @@ services:
         condition: service_healthy
 
 volumes:
+  app-storage:
   db-data:
   pgadmin-data:

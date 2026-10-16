@@ -1,0 +1,9 @@
+.git
+.claude
+.env
+.phpunit.result.cache
+CLAUDE.md
+docs
+storage
+tests
+vendor
