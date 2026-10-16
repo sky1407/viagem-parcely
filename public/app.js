@@ -19,6 +19,8 @@ const LAND_TYPES = [
 const UNKNOWN_LAND_TYPE_COLOR = '#bbbbbb';
 const MAX_SUGGESTIONS = 8;
 const COPY_FEEDBACK_MS = 1500;
+const MOBILE_QUERY = '(max-width: 600px)';
+const MAP_MARGIN = 40;
 const NOTHING_SELECTED = ['==', ['id'], -1];
 const SELECTION_LAYERS = ['parcels-selected-fill', 'parcels-selected-casing', 'parcels-selected-line'];
 const SELECTION_COLOR = '#00b4ff';
@@ -49,9 +51,44 @@ function setHashParam(name, value) {
     history.replaceState(history.state, '', `#${parts.join('&')}`);
 }
 
+function isMobile() {
+    return window.matchMedia(MOBILE_QUERY).matches;
+}
+
+function visiblePadding() {
+    const padding = { top: MAP_MARGIN, right: MAP_MARGIN, bottom: MAP_MARGIN, left: MAP_MARGIN };
+    const controls = document.querySelector('.controls').getBoundingClientRect();
+    const detail = document.getElementById('detail');
+    const panel = detail.hidden ? null : detail.getBoundingClientRect();
+
+    if (isMobile()) {
+        padding.top += controls.bottom;
+        padding.bottom += panel ? window.innerHeight - panel.top : 0;
+    } else {
+        padding.left += controls.right;
+        padding.right += panel ? window.innerWidth - panel.left : 0;
+    }
+    return padding;
+}
+
 function flyToParcel(map, bbox) {
-    const camera = map.cameraForBounds(bbox, { padding: 80, maxZoom: 18 });
-    map.flyTo({ ...camera, zoom: Math.max(camera?.zoom ?? MIN_PARCEL_ZOOM, MIN_PARCEL_ZOOM) });
+    const camera = map.cameraForBounds(bbox, { padding: visiblePadding(), maxZoom: 18 });
+    if (camera === undefined) {
+        map.flyTo({ center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], zoom: Math.max(map.getZoom(), MIN_PARCEL_ZOOM) });
+        return;
+    }
+    map.flyTo({ ...camera, zoom: Math.max(camera.zoom, MIN_PARCEL_ZOOM) });
+}
+
+function revealPoint(map, lngLat) {
+    const padding = visiblePadding();
+    const point = map.project(lngLat);
+    const canvas = map.getCanvas().getBoundingClientRect();
+    const covered = point.x < padding.left || point.x > canvas.width - padding.right
+        || point.y < padding.top || point.y > canvas.height - padding.bottom;
+    if (covered) {
+        map.easeTo({ center: lngLat, offset: [(padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2] });
+    }
 }
 
 function formatDate(isoDate) {
@@ -80,7 +117,7 @@ function createMap() {
     return new maplibregl.Map({
         container: 'map',
         bounds: DISTRICT_BOUNDS,
-        fitBoundsOptions: { padding: { top: 20, bottom: 20, right: 60, left: window.innerWidth > 600 ? 280 : 20 } },
+        fitBoundsOptions: { padding: { top: 20, bottom: 20, right: 60, left: isMobile() ? 20 : 280 } },
         minZoom: 8,
         maxZoom: 20,
         hash: 'map',
@@ -320,7 +357,7 @@ function createDetailPanel(map) {
         setHashParam('parcel', null);
     };
 
-    const open = async (id, { fly = false } = {}) => {
+    const open = async (id, { fly = false, reveal = null } = {}) => {
         request?.abort();
         const controller = new AbortController();
         request = controller;
@@ -339,6 +376,8 @@ function createDetailPanel(map) {
             content.replaceChildren(...renderParcel(parcel));
             if (fly) {
                 flyToParcel(map, parcel.bbox);
+            } else if (reveal !== null) {
+                revealPoint(map, reveal);
             }
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -526,8 +565,11 @@ async function createSearch(map, detail) {
             }
 
             const parcel = await response.json();
-            flyToParcel(map, parcel.bbox);
-            detail.open(parcel.id);
+            if (isMobile()) {
+                form.closest('details').open = false;
+                document.activeElement?.blur();
+            }
+            detail.open(parcel.id, { fly: true });
         } catch (error) {
             console.error(error);
             showStatus('Hledání se nepodařilo, zkuste to znovu.');
@@ -588,6 +630,11 @@ function init() {
     const sharedParcel = hashParam('parcel');
     const sharedPosition = hashParam('map') !== null;
 
+    if (isMobile()) {
+        for (const panel of document.querySelectorAll('[data-collapse-on-mobile]')) {
+            panel.open = false;
+        }
+    }
     renderLegend();
     const map = createMap();
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -607,7 +654,7 @@ function init() {
             detail.close();
             return;
         }
-        detail.open(feature.id);
+        detail.open(feature.id, { reveal: event.lngLat });
     });
     if (sharedParcel !== null && /^\d{1,18}$/.test(sharedParcel)) {
         map.once('load', () => detail.open(Number(sharedParcel), { fly: !sharedPosition }));

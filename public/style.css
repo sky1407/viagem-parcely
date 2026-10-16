@@ -27,7 +27,16 @@ html, body {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
-.panel h2 {
+.panel summary {
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.panel[open] summary {
+    margin-bottom: 6px;
+}
+
+.panel h3 {
     margin: 0 0 6px;
     font-size: 14px;
 }
@@ -180,15 +189,39 @@ html, body {
     border-color: #00b4ff;
 }
 
-.hint {
-    margin: 8px 0 0;
-    color: #b03a2e;
+.map-pill {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    padding: 6px 14px;
     font-weight: 600;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
 }
 
-.hint[hidden] {
+.map-pill[hidden] {
     display: none;
 }
+
+.hint {
+    bottom: 36px;
+    color: #b03a2e;
+}
+
+.status {
+    bottom: 76px;
+    color: #333;
+}
+
+.status.status-error {
+    color: #fff;
+    background: #b03a2e;
+}
+
 
 .detail {
     position: absolute;
@@ -284,10 +317,6 @@ html, body {
     .controls {
         right: 50px;
         width: auto;
-    }
-
-    .legend {
-        display: none;
     }
 }
 
