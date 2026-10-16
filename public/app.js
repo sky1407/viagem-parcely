@@ -18,6 +18,7 @@ const LAND_TYPES = [
 ];
 const UNKNOWN_LAND_TYPE_COLOR = '#bbbbbb';
 const MAX_SUGGESTIONS = 8;
+const COPY_FEEDBACK_MS = 1500;
 const NOTHING_SELECTED = ['==', ['id'], -1];
 const SELECTION_LAYERS = ['parcels-selected-fill', 'parcels-selected-casing', 'parcels-selected-line'];
 const SELECTION_COLOR = '#00b4ff';
@@ -264,12 +265,40 @@ function renderParcel(parcel) {
     }
     list.append(element('dt', 'Ochrana'), protections);
 
+    const actions = element('div', undefined, 'detail-actions');
+    actions.append(
+        copyButton('Kopírovat označení', `parc. č. ${parcel.number}, k. ú. ${parcel.cadastral_area.name} [${parcel.cadastral_area.code}]`),
+        copyButton('Kopírovat odkaz', `${location.origin}/#parcel=${parcel.id}`),
+    );
+
     const link = element('a', 'Otevřít v Nahlížení do KN');
     link.href = parcel.cadastre_url;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
 
-    return [element('h2', `Parcela ${parcel.number}`), list, link];
+    return [element('h2', `Parcela ${parcel.number}`), list, actions, link];
+}
+
+function copyButton(label, text) {
+    const button = element('button', label);
+    button.type = 'button';
+    let reset = null;
+
+    button.addEventListener('click', async () => {
+        clearTimeout(reset);
+        try {
+            await navigator.clipboard.writeText(text);
+            button.textContent = 'Zkopírováno ✓';
+        } catch (error) {
+            console.error(error);
+            button.textContent = 'Kopírování selhalo';
+        }
+        reset = setTimeout(() => {
+            button.textContent = label;
+        }, COPY_FEEDBACK_MS);
+    });
+
+    return button;
 }
 
 function createDetailPanel(map) {

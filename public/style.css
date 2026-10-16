@@ -233,6 +233,28 @@ html, body {
     padding-left: 18px;
 }
 
+.detail-actions {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.detail-actions button {
+    flex: 1;
+    padding: 5px 6px;
+    font: inherit;
+    font-size: 13px;
+    color: #1f5fbf;
+    background: #fff;
+    border: 1px solid #1f5fbf;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.detail-actions button:hover {
+    background: #e3edfb;
+}
+
 .detail .close {
     position: absolute;
     top: 6px;
