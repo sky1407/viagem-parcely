@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Controller\TileController;
 use App\Database;
 use App\Http\JsonResponse;
+use App\Repository\TileRepository;
 use App\Router;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -21,12 +23,22 @@ ini_set('display_errors', '0');
 
 $config = require __DIR__ . '/../config.php';
 
+$connect = function () use ($config): PDO {
+    static $pdo = null;
+
+    return $pdo ??= Database::connect(...$config['db']);
+};
+
 $router = new Router();
 
-$router->get('/api/health', function () use ($config): void {
-    $pdo = Database::connect(...$config['db']);
-    $count = (int) $pdo->query('SELECT count(*) FROM parcel')->fetchColumn();
+$router->get('/api/health', function () use ($connect): void {
+    $count = (int) $connect()->query('SELECT count(*) FROM parcel')->fetchColumn();
     JsonResponse::send(['status' => 'ok', 'parcels' => $count]);
+});
+
+$router->get('/api/tiles/(?<z>\d{1,2})/(?<x>\d{1,7})/(?<y>\d{1,7})\.pbf', function (string $z, string $x, string $y) use ($connect): void {
+    $controller = new TileController(new TileRepository($connect), __DIR__ . '/../storage/tiles');
+    $controller->show((int) $z, (int) $x, (int) $y);
 });
 
 try {
