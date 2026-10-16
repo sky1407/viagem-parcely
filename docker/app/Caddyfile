@@ -9,6 +9,13 @@
 :{$PORT:8080} {
 	root * /app/public
 	encode zstd gzip
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' https://unpkg.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://ags.cuzk.gov.cz; connect-src 'self' https://tile.openstreetmap.org https://ags.cuzk.gov.cz; worker-src blob:; child-src blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-X-Powered-By
+	}
 	rewrite / /index.html
 	php_server
 }
