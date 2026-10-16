@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: viagem-parcely
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: viagem-parcely-db
+          property: connectionString
+      - key: WARM_TILES
+        value: "1"
+      - key: WARM_WORKERS
+        value: "2"
+
+databases:
+  - name: viagem-parcely-db
+    plan: free
+    region: frankfurt
+    databaseName: parcels
+    user: parcels
+    postgresMajorVersion: "17"

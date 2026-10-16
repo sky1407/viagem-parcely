@@ -21,6 +21,18 @@ Rozhodnutia aj s nameranými číslami sú v [zápisníku rozhodnutí](docs/deci
 
 ## Spustenie
 
+### Iba s Dockerom
+
+```bash
+docker compose up -d --build                        # PostGIS + aplikácia (FrankenPHP) na porte 8080
+docker compose exec app php bin/import.php          # import celého okresu (~1 min)
+docker compose exec app php bin/warm-tiles.php      # voliteľné: predgenerovanie dlaždíc
+```
+
+Aplikácia beží na <http://127.0.0.1:8080/>. Port sa dá zmeniť premennou `APP_PORT`.
+
+### S lokálnym PHP (vývoj)
+
 ```bash
 docker compose up -d db           # PostGIS 17 + 3.5 na porte 5433, schéma sa vytvorí automaticky
 composer install                  # autoload + PHPUnit
@@ -59,6 +71,22 @@ Pripojenie k DB sa číta z premenných prostredia `DB_HOST`, `DB_PORT`, `DB_NAM
 Rovnaké premenné používa `docker-compose.yml`.
 
 Na prezeranie databázy je k dispozícii voliteľný pgAdmin: `docker compose --profile tools up -d`, potom <http://127.0.0.1:5050/>.
+
+## Nasadenie (Render)
+
+[render.yaml](render.yaml) popisuje web service z [Dockerfile](Dockerfile) (FrankenPHP, Frankfurt) a PostgreSQL 17.
+
+1. V Render Dashboarde zvoľte **New → Blueprint** a vyberte tento repozitár.
+2. Po vytvorení databázy nahrajte dáta z lokálnej DB. External Database URL nájdete v Renderi v sekcii databázy → Connect:
+
+   ```bash
+   docker compose exec -T db pg_dump -U parcels -d parcels -Fc --no-owner --no-acl \
+     | docker compose exec -T -e URL="<External Database URL>" db sh -c 'pg_restore --no-owner --no-acl --exit-on-error -d "$URL"'
+   ```
+
+3. Aplikácia pri štarte predgeneruje dlaždice (`WARM_TILES=1`). Disk na Renderi nie je trvalý, preto sa cache po reštarte vytvorí znova.
+
+Pri nasadení s PHP serverom (Caddy/FrankenPHP, nginx, Apache) musia všetky požiadavky na neexistujúce súbory smerovať na `public/index.php`.
 
 ## API
 
