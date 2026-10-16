@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Domain\ParcelNumber;
 use Closure;
 use PDO;
 use RuntimeException;
@@ -47,14 +48,14 @@ final class ParcelRepository
     {
     }
 
-    public function findByNumber(int $cadastralAreaCode, int $numberingType, int $stemNumber, ?int $subdivisionNumber): ?array
+    public function findByNumber(int $cadastralAreaCode, ParcelNumber $number): ?array
     {
-        $params = [$cadastralAreaCode, $numberingType, $stemNumber];
-        if ($subdivisionNumber === null) {
+        $params = [$cadastralAreaCode, $number->numberingType, $number->stemNumber];
+        if ($number->subdivisionNumber === null) {
             $condition = 'subdivision_number IS NULL';
         } else {
             $condition = 'subdivision_number = ?';
-            $params[] = $subdivisionNumber;
+            $params[] = $number->subdivisionNumber;
         }
 
         $statement = $this->pdo()->prepare(sprintf(self::FIND_BY_NUMBER_SQL, $condition));
