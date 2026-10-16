@@ -17,7 +17,7 @@ const LAND_TYPES = [
 ];
 const UNKNOWN_LAND_TYPE_COLOR = '#bbbbbb';
 const MAX_SUGGESTIONS = 8;
-const NOTHING_SELECTED =['==', ['id'], -1];
+const NOTHING_SELECTED = ['==', ['id'], -1];
 const SELECTION_LAYERS = ['parcels-selected-fill', 'parcels-selected-casing', 'parcels-selected-line'];
 const SELECTION_COLOR = '#00b4ff';
 const DISTRICT_COLOR = '#ff00a8';
@@ -29,13 +29,17 @@ const BASEMAPS = {
 const numberFormat = new Intl.NumberFormat('cs-CZ');
 const dateFormat = new Intl.DateTimeFormat('cs-CZ');
 
+function formatDate(isoDate) {
+    const [year, month, day] = isoDate.split('-').map(Number);
+    return dateFormat.format(new Date(year, month - 1, day));
+}
+
 function renderLegend() {
     const list = document.getElementById('legend-items');
     for (const [, name, color] of LAND_TYPES) {
-        const item = document.createElement('li');
-        const swatch = document.createElement('span');
-        swatch.className = 'swatch';
+        const swatch = element('span', undefined, 'swatch');
         swatch.style.background = color;
+        const item = element('li');
         item.append(swatch, name);
         list.append(item);
     }
@@ -186,7 +190,7 @@ function renderParcel(parcel) {
         ['Výměra', `${numberFormat.format(parcel.area_m2)} m²`],
         ['Druh pozemku', parcel.land_type],
         ['Způsob využití', parcel.land_use ?? '—'],
-        ['Platí od', dateFormat.format(new Date(parcel.valid_from))],
+        ['Platí od', formatDate(parcel.valid_from)],
     ];
 
     const list = element('dl');
@@ -447,10 +451,9 @@ async function createSearch(map, detail) {
 
 function init() {
     if (typeof maplibregl === 'undefined') {
-        const message = document.createElement('p');
-        message.className = 'error';
-        message.textContent = 'Knihovnu mapy se nepodařilo načíst. Zkontrolujte připojení k internetu.';
-        document.body.replaceChildren(message);
+        document.body.replaceChildren(
+            element('p', 'Knihovnu mapy se nepodařilo načíst. Zkontrolujte připojení k internetu.', 'error'),
+        );
         return;
     }
 
