@@ -116,8 +116,8 @@ final class GmlToWkt
         $centerX = ($a2 * ($by - $cy) + $b2 * ($cy - $ay) + $c2 * ($ay - $by)) / $d;
         $centerY = ($a2 * ($cx - $bx) + $b2 * ($ax - $cx) + $c2 * ($bx - $ax)) / $d;
 
-        $start = "{$ax} {$ay}";
-        $opposite = (2 * $centerX - $ax) . ' ' . (2 * $centerY - $ay);
+        $start = $this->point($ax, $ay);
+        $opposite = $this->point(2 * $centerX - $ax, 2 * $centerY - $ay);
 
         return "CIRCULARSTRING({$start}, {$opposite}, {$start})";
     }
@@ -125,9 +125,14 @@ final class GmlToWkt
     private function coordinates(DOMElement $element): string
     {
         return implode(', ', array_map(
-            static fn (array $point): string => "{$point[0]} {$point[1]}",
+            fn (array $point): string => $this->point(...$point),
             $this->points($element),
         ));
+    }
+
+    private function point(float $x, float $y): string
+    {
+        return ($x === 0.0 ? '0' : (string) $x) . ' ' . ($y === 0.0 ? '0' : (string) $y);
     }
 
     private function points(DOMElement $element): array

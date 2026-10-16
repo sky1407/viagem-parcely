@@ -3,3 +3,4 @@ CLAUDE.md
 storage/
 .env
 vendor/
+.phpunit.result.cache
