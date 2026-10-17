@@ -100,6 +100,44 @@ Na prezeranie databázy je k dispozícii voliteľný pgAdmin: `docker compose --
 
 Pri nasadení s PHP serverom (Caddy/FrankenPHP, nginx, Apache) musia všetky požiadavky na neexistujúce súbory smerovať na `public/index.php`.
 
+### Prečo Render
+
+Projekt som nasadil na Render, aby som ho otestoval v reálnom prostredí a odladil chyby, ktoré sa pri lokálnom
+spustení neprejavia: obmedzené práva kontajnera, pomalé CPU a DB na free pláne, health checky platformy,
+cache prehliadača medzi nasadeniami a skutočné mobilné zariadenia. Chyby nájdené po nasadení
+(podrobnosti v [zápisníku rozhodnutí](docs/decisions.md), sekcie 20 a 21):
+
+| Commit | Chyba | Oprava |
+|---|---|---|
+| `6b46176` | Kontajner sa hlásil ako `unhealthy`, zdedený HEALTHCHECK sa pýtal vypnutého admin API Caddy | healthcheck volá priamo aplikáciu |
+| `fd30317` | `exec: frankenphp: Operation not permitted`, Render nepovoľuje binárky s file capabilities | `setcap -r` a beh pod neprivilegovaným používateľom |
+| `a942098` | Predgenerovanie všetkých 12 498 dlaždíc by na free pláne trvalo ~1,5 h | na Renderi iba z8–z14 (895 dlaždíc) |
+| `ac2f22c` | Databáza bola dostupná z internetu | prístup iba z internej siete Renderu |
+| `652b546` | Výpadky 502: health check na `/` čakal za pomalými dlaždicami na 2 PHP vláknach | `/` ako statický súbor, 8 PHP vlákien, predgenerovanie 1 procesom |
+| `d4c4b5b` | Server ukladal dlaždice až do z22, disk sa dal zaplniť | limit `TileService::MAX_ZOOM = 16` |
+| `a383a67` | `HEAD` vracal 405 a `/api/health` trval 1,8 s (`count(*)`) | HEAD cez trasu GET, odhad počtu zo štatistík DB (11 ms) |
+| `51656c2` | „Platí od“ ukazovalo západne od UTC o deň skôr | dátum v miestnom čase |
+| `d2e41e3` | Chýbali bezpečnostné hlavičky, odpovede prezrádzali verziu PHP | CSP, `nosniff`, `Referrer-Policy`, bez `X-Powered-By` |
+| `4061e8d` | Natívny `<datalist>` nenašiel KÚ pri písaní bez diakritiky | vlastný našepkávač bez ohľadu na diakritiku |
+| `9afaa4d` | Na mobile ostalo pre mapu ~100 px a vybraná parcela bola pod detailom | panely sa zbalia, parcela sa posunie do viditeľnej časti |
+| `ed6e117` | Pomalé načítanie dlaždíc nebolo nijako vidieť a chyby servera sa stratili | indikátor načítavania a hlásenie chyby nad mapou |
+| `f05fdda` | Po nasadení spadol prelet na parcelu, prehliadač mal v cache detail zo starej verzie | verzia v URL API (`?v=2`), `no-cache` pre `index.html`, `app.js`, `style.css` |
+
+### Rýchlosť na free pláne
+
+Namerané 17. 10. 2026 na prebudenej inštancii:
+
+| | čas |
+|---|---|
+| `index.html`, `app.js`, `/api/health` | 60–100 ms |
+| dlaždica z cache (z8–z14 predgenerované) | 55–120 ms |
+| dlaždica z15–z16 pri prvom zobrazení | 0,3–3,7 s |
+| prebudenie uspatej inštancie | ~1 min |
+
+Pomalé prvé načítanie je teda vlastnosť free plánu, nie aplikácie: inštancia sa po 15 minútach nečinnosti uspí,
+po prebudení sa cache dlaždíc vytvára znova (disk nie je trvalý) a dlaždice z15–z16 sa generujú až pri prvom zobrazení.
+Na platenom pláne s trvalým diskom by sa celá cache predgenerovala raz a každá dlaždica by išla z cache.
+
 ## API
 
 | Endpoint | Odpoveď |
