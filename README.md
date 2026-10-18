@@ -145,10 +145,12 @@ Na platenom pláne s trvalým diskom by sa celá cache predgenerovala raz a kaž
 | `GET /api/tiles/{z}/{x}/{y}.pbf` | Mapbox Vector Tile s vrstvami `cadastral_areas` (vždy) a `parcels` (z ≥ 14); prázdna dlaždica vracia `204` |
 | `GET /api/parcels/{id}` | detail parcely (JSON) |
 | `GET /api/parcels/search?cadastral_area={kód}&number={číslo}` | `{id, bbox}` nájdenej parcely; číslo vo formáte `st. 12/3`, `791/34`, `15` |
-| `GET /api/cadastral-areas` | zoznam KÚ okresu pre našepkávač |
+| `GET /api/cadastral-areas` | zoznam KÚ okresu pre našepkávač vrátane `bbox` (WGS84) |
+| `GET /api/cadastral-areas/{kód}/parcels` | `[{id, number}]` všetkých parciel KÚ pre našepkávač čísla parcely; neznáme KÚ vracia `404` |
+| `POST /api/parcels/intersect` | telo je GeoJSON `LineString` alebo `Polygon` (jeden prstenec, najviac 200 bodov, v okrese); vracia `{truncated, parcels: [{id, number, cadastral_area, land_type, area_m2}]}`, najviac 500 parciel |
 | `GET /api/health` | stav aplikácie a odhad počtu parciel zo štatistík DB (bez prechodu tabuľkou) |
 
-Chyby majú tvar `{"error": "..."}` s kódom 400, 404, 405 alebo 500. Pri chybe 500 sa detail zapíše iba do logu servera.
+Chyby majú tvar `{"error": "..."}` s kódom 400, 404, 405, 413 alebo 500. Pri chybe 500 sa detail zapíše iba do logu servera.
 
 ## Štruktúra
 
@@ -169,6 +171,7 @@ src/
   Cache/TileCache.php     disková cache dlaždíc s atomickým zápisom
   Import/                 Downloader, CodeListImporter, VfrParcelReader, GmlToWkt, ParcelWriter
   Domain/ParcelNumber.php parsovanie a formátovanie čísla parcely („st. 12/3“)
+  Domain/DrawnGeometry.php validácia nakreslenej línie alebo oblasti pred dotazom do PostGIS
 tests/                    PHPUnit testy
 sql/schema.sql            schéma PostGIS (spúšťa sa pri prvom štarte kontajnera)
 storage/                  stiahnuté dáta a cache dlaždíc (mimo gitu)

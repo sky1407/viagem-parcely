@@ -32,6 +32,15 @@ const DISTRICT_COLOR = '#ff00a8';
 const AREA_SELECTION_LAYERS = ['cadastral-area-selected-casing', 'cadastral-area-selected-line'];
 const AREA_SELECTION_COLOR = '#e8590c';
 const AREA_MAX_ZOOM = 15;
+const DRAW_COLOR = '#1f3a5f';
+const MAX_DRAWN_VERTICES = 200;
+const MIN_DRAWN_VERTICES = { line: 2, polygon: 3 };
+const IDENTIFY_HINTS = {
+    point: 'Klikněte na parcelu v mapě.',
+    line: 'Klikáním zadejte body linie. Dvojklikem nebo tlačítkem Dokončit ji ukončete.',
+    polygon: 'Klikáním zadejte vrcholy oblasti. Dvojklikem nebo tlačítkem Dokončit ji uzavřete.',
+};
+const EMPTY_DRAWING = { type: 'FeatureCollection', features: [] };
 const BASEMAPS = {
     osm: { parcelOpacity: 0.55 },
     orthophoto: { parcelOpacity: 0.2 },
@@ -155,6 +164,7 @@ function createMap() {
                     maxzoom: 16,
                     attribution: '© <a href="https://cuzk.gov.cz">ČÚZK</a>',
                 },
+                drawing: { type: 'geojson', data: EMPTY_DRAWING },
             },
             layers: [
                 { id: 'osm', type: 'raster', source: 'osm' },
@@ -294,6 +304,33 @@ function createMap() {
                         'text-halo-width': 1.5,
                     },
                 },
+                {
+                    id: 'drawing-fill',
+                    type: 'fill',
+                    source: 'drawing',
+                    filter: ['==', ['geometry-type'], 'Polygon'],
+                    paint: { 'fill-color': DRAW_COLOR, 'fill-opacity': 0.12 },
+                },
+                {
+                    id: 'drawing-line',
+                    type: 'line',
+                    source: 'drawing',
+                    filter: ['!=', ['geometry-type'], 'Point'],
+                    layout: { 'line-join': 'round' },
+                    paint: { 'line-color': DRAW_COLOR, 'line-width': 2.5, 'line-dasharray': [2, 1] },
+                },
+                {
+                    id: 'drawing-vertices',
+                    type: 'circle',
+                    source: 'drawing',
+                    filter: ['==', ['geometry-type'], 'Point'],
+                    paint: {
+                        'circle-radius': 4,
+                        'circle-color': '#ffffff',
+                        'circle-stroke-color': DRAW_COLOR,
+                        'circle-stroke-width': 2,
+                    },
+                },
             ],
         },
     });
@@ -392,14 +429,22 @@ function createDetailPanel(map) {
         setHashParam('parcel', null);
     };
 
-    const open = async (id, { fly = false, reveal = null } = {}) => {
+    const open = async (id, { fly = false, reveal = null, back = null } = {}) => {
         request?.abort();
         const controller = new AbortController();
         request = controller;
 
+        const header = [];
+        if (back !== null) {
+            const backButton = element('button', '← Zpět na výsledky', 'back-link');
+            backButton.type = 'button';
+            backButton.addEventListener('click', back);
+            header.push(backButton);
+        }
+
         select(['==', ['id'], id]);
         setHashParam('parcel', String(id));
-        content.replaceChildren(element('p', 'Načítám…'));
+        content.replaceChildren(...header, element('p', 'Načítám…'));
         panel.hidden = false;
 
         try {
@@ -408,7 +453,7 @@ function createDetailPanel(map) {
                 throw new Error(response.status === 404 ? 'Parcela nebyla nalezena.' : `Chyba serveru (${response.status}).`);
             }
             const parcel = await response.json();
-            content.replaceChildren(...renderParcel(parcel));
+            content.replaceChildren(...header, ...renderParcel(parcel));
             if (fly) {
                 flyToParcel(map, parcel.bbox);
             } else if (reveal !== null) {
@@ -419,8 +464,17 @@ function createDetailPanel(map) {
                 return;
             }
             console.error(error);
-            content.replaceChildren(element('p', error.message || 'Detail se nepodařilo načíst.', 'status-error'));
+            content.replaceChildren(...header, element('p', error.message || 'Detail se nepodařilo načíst.', 'status-error'));
         }
+    };
+
+    const show = (nodes, ids) => {
+        request?.abort();
+        request = null;
+        select(ids.length > 0 ? ['in', ['id'], ['literal', ids]] : NOTHING_SELECTED);
+        setHashParam('parcel', null);
+        content.replaceChildren(...nodes);
+        panel.hidden = false;
     };
 
     document.getElementById('detail-close').addEventListener('click', close);
@@ -430,7 +484,186 @@ function createDetailPanel(map) {
         }
     });
 
-    return { open, close };
+    return { open, show, close };
+}
+
+function parcelCount(count) {
+    if (count === 1) {
+        return '1 parcela';
+    }
+    return `${numberFormat.format(count)} ${count >= 2 && count <= 4 ? 'parcely' : 'parcel'}`;
+}
+
+function renderIntersected(kind, result, detail) {
+    const ids = result.parcels.map((parcel) => parcel.id);
+    const total = result.parcels.reduce((sum, parcel) => sum + parcel.area_m2, 0);
+    const nodes = [element('h2', kind === 'polygon' ? 'Parcely v oblasti' : 'Parcely na linii')];
+
+    if (result.parcels.length === 0) {
+        nodes.push(element('p', 'Nakreslený tvar nezasahuje žádnou parcelu.'));
+        return { nodes, ids };
+    }
+
+    let summary = `${parcelCount(result.parcels.length)}, celkem ${numberFormat.format(total)} m²`;
+    if (result.truncated) {
+        summary += '. Zobrazeno jen prvních 500, zmenšete oblast.';
+    }
+    nodes.push(element('p', summary, 'results-summary'));
+
+    const list = element('ul', undefined, 'results');
+    for (const parcel of result.parcels) {
+        const button = element('button');
+        button.type = 'button';
+        button.append(
+            element('span', parcel.number),
+            element('span', `${numberFormat.format(parcel.area_m2)} m²`),
+            element('small', `${parcel.cadastral_area} · ${parcel.land_type}`),
+        );
+        button.addEventListener('click', () => {
+            detail.open(parcel.id, { fly: true, back: () => detail.show(nodes, ids) });
+        });
+        const item = element('li');
+        item.append(button);
+        list.append(item);
+    }
+    nodes.push(list);
+
+    return { nodes, ids };
+}
+
+function createIdentify(map, detail) {
+    const buttons = [...document.querySelectorAll('.segmented [data-mode]')];
+    const hint = document.getElementById('identify-hint');
+    const actions = document.getElementById('identify-actions');
+    const finishButton = document.getElementById('identify-finish');
+    let mode = 'point';
+    let vertices = [];
+    let cursor = null;
+    let finished = false;
+    let request = null;
+
+    const draw = () => {
+        const features = vertices.map((coordinates) => ({ type: 'Feature', geometry: { type: 'Point', coordinates } }));
+        const path = cursor !== null ? [...vertices, cursor] : vertices;
+        if (mode === 'polygon' && path.length >= 3) {
+            features.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [[...path, path[0]]] } });
+        } else if (path.length >= 2) {
+            features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: path } });
+        }
+        map.getSource('drawing')?.setData({ type: 'FeatureCollection', features });
+        finishButton.disabled = finished || vertices.length < (MIN_DRAWN_VERTICES[mode] ?? Infinity);
+    };
+
+    const reset = () => {
+        request?.abort();
+        vertices = [];
+        cursor = null;
+        finished = false;
+        hint.textContent = IDENTIFY_HINTS[mode];
+        draw();
+    };
+
+    const setMode = (next) => {
+        mode = next;
+        for (const button of buttons) {
+            button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
+        }
+        actions.hidden = mode === 'point';
+        map.getContainer().classList.toggle('drawing', mode !== 'point');
+        if (mode === 'point') {
+            map.doubleClickZoom.enable();
+        } else {
+            map.doubleClickZoom.disable();
+        }
+        reset();
+    };
+
+    const finish = async () => {
+        if (finished || vertices.length < (MIN_DRAWN_VERTICES[mode] ?? Infinity)) {
+            return;
+        }
+        finished = true;
+        cursor = null;
+        draw();
+
+        const kind = mode;
+        const coordinates = vertices.map(([lng, lat]) => [Number(lng.toFixed(6)), Number(lat.toFixed(6))]);
+        const geometry = kind === 'polygon'
+            ? { type: 'Polygon', coordinates: [[...coordinates, coordinates[0]]] }
+            : { type: 'LineString', coordinates };
+
+        request?.abort();
+        const controller = new AbortController();
+        request = controller;
+        detail.show([element('p', 'Hledám parcely…')], []);
+        try {
+            const response = await fetch('/api/parcels/intersect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(geometry),
+                signal: controller.signal,
+            });
+            if (!response.ok) {
+                throw new Error(response.status === 400 ? 'Nakreslete tvar uvnitř okresu Jičín.' : `Chyba serveru (${response.status}).`);
+            }
+            const { nodes, ids } = renderIntersected(kind, await response.json(), detail);
+            detail.show(nodes, ids);
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                return;
+            }
+            console.error(error);
+            detail.show([element('p', error.message || 'Parcely se nepodařilo najít.', 'status-error')], []);
+        }
+    };
+
+    for (const button of buttons) {
+        button.addEventListener('click', () => setMode(button.dataset.mode));
+    }
+    finishButton.addEventListener('click', finish);
+    document.getElementById('identify-cancel').addEventListener('click', () => {
+        reset();
+        detail.close();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && mode !== 'point') {
+            reset();
+        }
+    });
+    map.on('mousemove', (event) => {
+        if (mode === 'point' || finished || vertices.length === 0) {
+            return;
+        }
+        cursor = [event.lngLat.lng, event.lngLat.lat];
+        draw();
+    });
+    map.on('dblclick', (event) => {
+        if (mode !== 'point') {
+            event.preventDefault();
+            finish();
+        }
+    });
+
+    return {
+        handlesClick(event) {
+            if (mode === 'point') {
+                return false;
+            }
+            if (event.originalEvent.detail > 1) {
+                return true;
+            }
+            if (finished) {
+                reset();
+            }
+            if (vertices.length >= MAX_DRAWN_VERTICES) {
+                hint.textContent = `Nejvýše ${MAX_DRAWN_VERTICES} bodů. Tvar dokončete.`;
+                return true;
+            }
+            vertices.push([event.lngLat.lng, event.lngLat.lat]);
+            draw();
+            return true;
+        },
+    };
 }
 
 function withoutDiacritics(text) {
@@ -858,7 +1091,11 @@ function init() {
     updateHint();
 
     const detail = createDetailPanel(map);
+    const identify = createIdentify(map, detail);
     map.on('click', (event) => {
+        if (identify.handlesClick(event)) {
+            return;
+        }
         const [feature] = map.queryRenderedFeatures(event.point, { layers: ['parcels-fill'] });
         if (feature?.id === undefined) {
             detail.close();

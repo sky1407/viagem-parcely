@@ -209,9 +209,11 @@ kde by sa chyba najľahšie skryla:
   - Logiku som kvôli tomu vytiahol z controllera do samostatnej triedy, ktorú používa aj formátovanie v detaile.
 - **`Router`:**
   - pomenované parametre nezávisle od poradia skupín v regexe;
-  - ukotvenie regexu, poradie trás, 404 a 405.
+  - ukotvenie regexu, poradie trás, 404 a 405;
+  - trasa `POST` beží iba pre POST (doplnené s bodom 22).
+- **`DrawnGeometry`** (doplnené s bodom 22): platná línia a polygón, 12 neplatných vstupov (zlý typ, málo alebo veľa bodov, text namiesto čísla, 3D bod, bod mimo okresu, prehodené súradnice, otvorený prstenec, diera).
 
-Spolu 41 testov. Či testy naozaj niečo strážia, som overil mutáciami: odstránenie `^…$` v routeri aj
+Pôvodne 41 testov, s bodom 22 spolu 57. Či testy naozaj niečo strážia, som overil mutáciami: odstránenie `^…$` v routeri aj
 povolenie neobmedzenej dĺžky čísla parcely testy zachytili.
 
 **Nájdená chyba:** test kružnice odhalil, že pri výpočte stredu môže vzniknúť záporná nula a WKT obsahovalo `-0`.
@@ -317,6 +319,22 @@ Na záver som prešiel celý projekt znova. Nálezy som overil na bežiacej apli
   - Všetky volania API a dlaždíc nesú verziu (`?v=2`). Pri zmene formátu dát sa zvýši `API_VERSION` a prehliadač stiahne nové odpovede, pričom dlhú cache pre nezmenené dáta netreba skracovať.
   - `index.html`, `app.js` a `style.css` majú `Cache-Control: no-cache`. Prehliadač sa vždy spýta, či sú aktuálne, a pri nezmenenom súbore dostane 304.
   - Prelet bez platného `bbox` sa preskočí, takže detail sa zobrazí aj vtedy.
+
+## 22. Hľadanie podľa vzoru ZBGIS: zamknuté KÚ, zoznam čísel a identifikácia tvarom
+
+Inšpiráciou bola slovenská mapa ZBGIS, kde sa po výbere KÚ ďalej hľadá iba podľa čísla a objekty sa dajú identifikovať bodom, líniou alebo oblasťou.
+
+- **Zamknuté KÚ:** vybrané KÚ sa zmení na štítok s ✕, jeho hranica sa zvýrazní a mapa sa naň priblíži. Ďalšie hľadania potrebujú iba číslo. Zoznam KÚ preto vracia aj `bbox`, čo zmenilo formát odpovede, a tak sa zvýšilo `API_VERSION` na 3.
+- **Zoznam KÚ aj čísel:** pole KÚ dostalo späť celý zoznam (šípka ▾) popri písaní bez diakritiky. Rovnaký našepkávač teraz slúži aj číslu parcely.
+  - Zvažoval som hľadanie na serveri pri každom písaní (malé odpovede, ale požiadavka pri každom znaku a na free pláne pomalé).
+  - Vybral som jeden zoznam celého KÚ: najväčšie KÚ Jičín má 12 286 parciel, 71 kB po gzipe, 59 ms. Filtrovanie je potom okamžité a výber hneď otvorí detail bez ďalšieho hľadania.
+  - Celý zoznam ukáže najviac 300 položiek, ďalej treba písať. Vykresliť 12 000 prvkov naraz by na mobile sekalo.
+- **Identifikácia líniou a oblasťou:**
+  - Zvažoval som výber iba v prehliadači cez `queryRenderedFeatures`. Funguje však len od z14 a na výreze mapy a parcely rozdelené medzi dlaždice vracia viackrát.
+  - Vybral som `POST /api/parcels/intersect` s `ST_Intersects` nad `geom_3857` cez GIST index. Výsledok je presný pri akomkoľvek priblížení.
+  - **Ochrana servera:** geometriu najprv overí `DrawnGeometry` (typ, najviac 200 bodov, číselné súradnice v okrese, uzavretý prstenec), telo požiadavky má limit 16 kB a dotaz berie najviac 501 parciel. Ak ich je viac, odpoveď hlási `truncated`. Aj polygón cez celý okres tak trvá ~30 ms.
+  - Samopretínajúci sa polygón opraví `ST_MakeValid`, aby dotaz nespadol.
+  - Kreslenie je bez knižnice: GeoJSON zdroj s tromi vrstvami (výplň, prerušovaná čiara, body). Dvojklik alebo tlačidlo „Dokončit“ tvar ukončí a na mobile slúži tlačidlo. Výsledky sa zvýraznia filtrom `['in', ['id'], ...]` a zo zoznamu sa dá otvoriť detail s návratom späť na výsledky.
 
 ## Známe obmedzenia a ďalšie kroky
 

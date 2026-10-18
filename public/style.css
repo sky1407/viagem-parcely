@@ -18,6 +18,8 @@ html, body {
     flex-direction: column;
     gap: 10px;
     width: 250px;
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
 }
 
 .panel {
@@ -205,6 +207,125 @@ html, body {
 
 .status-error[hidden] {
     display: none;
+}
+
+.segmented {
+    display: flex;
+}
+
+.segmented button {
+    flex: 1;
+    padding: 6px 4px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f5fbf;
+    background: #fff;
+    border: 1px solid #1f5fbf;
+    cursor: pointer;
+}
+
+.segmented button + button {
+    border-left: 0;
+}
+
+.segmented button:first-child {
+    border-radius: 4px 0 0 4px;
+}
+
+.segmented button:last-child {
+    border-radius: 0 4px 4px 0;
+}
+
+.segmented button[aria-pressed="true"] {
+    color: #fff;
+    background: #1f5fbf;
+}
+
+.identify-hint {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #666;
+}
+
+.identify-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.identify-actions[hidden] {
+    display: none;
+}
+
+.identify-actions button {
+    flex: 1;
+    padding: 5px 6px;
+    font: inherit;
+    font-size: 13px;
+    color: #1f5fbf;
+    background: #fff;
+    border: 1px solid #1f5fbf;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.identify-actions #identify-finish {
+    color: #fff;
+    background: #1f5fbf;
+}
+
+.identify-actions button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.results-summary {
+    margin: 0 0 8px;
+    color: #666;
+}
+
+.results {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.detail .results {
+    padding: 0;
+}
+
+.results button {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0 8px;
+    width: 100%;
+    padding: 6px 4px;
+    font: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.results button:hover {
+    background: #e3edfb;
+}
+
+.results small {
+    grid-column: 1 / -1;
+    color: #666;
+}
+
+.back-link {
+    margin: 0 0 8px;
+    padding: 0;
+    font: inherit;
+    color: #1f5fbf;
+    background: none;
+    border: 0;
+    cursor: pointer;
 }
 
 .legend ul {
@@ -399,4 +520,8 @@ html, body {
     place-items: center;
     margin: 0;
     font-size: 16px;
+}
+
+.drawing .maplibregl-canvas {
+    cursor: crosshair !important;
 }

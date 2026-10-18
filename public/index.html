@@ -40,6 +40,19 @@
             <p id="search-status" class="status-error" hidden></p>
         </form>
     </details>
+    <details class="panel identify" open data-collapse-on-mobile>
+        <summary>Identifikace</summary>
+        <div class="segmented" role="group" aria-label="Způsob identifikace">
+            <button type="button" data-mode="point" aria-pressed="true">Bodem</button>
+            <button type="button" data-mode="line" aria-pressed="false">Linií</button>
+            <button type="button" data-mode="polygon" aria-pressed="false">Oblastí</button>
+        </div>
+        <p id="identify-hint" class="identify-hint">Klikněte na parcelu v mapě.</p>
+        <div id="identify-actions" class="identify-actions" hidden>
+            <button type="button" id="identify-finish" disabled>Dokončit</button>
+            <button type="button" id="identify-cancel">Zrušit</button>
+        </div>
+    </details>
     <details class="panel basemap" open data-collapse-on-mobile>
         <summary>Podkladová mapa</summary>
         <div role="radiogroup" aria-label="Podkladová mapa">
