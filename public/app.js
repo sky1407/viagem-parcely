@@ -801,7 +801,11 @@ function createAutocomplete(input, list, toggle, { key, label, note, emptyText, 
         setItems(items) {
             entries = items.map((item) => ({ item, key: key(label(item)) }));
             toggle.hidden = items.length === 0;
-            close();
+            if (document.activeElement === input) {
+                render(false);
+            } else {
+                close();
+            }
         },
     };
 }
