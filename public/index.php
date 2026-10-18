@@ -29,7 +29,7 @@ ini_set('display_errors', '0');
 
 $config = require __DIR__ . '/../config.php';
 
-$connection = new LazyConnection($config['db']);
+$connection = new LazyConnection($config['db'], persistent: true);
 
 $router = new Router();
 
