@@ -15,9 +15,16 @@
         <summary>Hledat parcelu</summary>
         <form id="search" class="search" autocomplete="off">
             <label for="search-area">Katastrální území</label>
-            <div class="combobox">
+            <div id="area-lock" class="area-lock" hidden>
+                <span id="area-lock-name"></span>
+                <button type="button" id="area-unlock" aria-label="Zrušit výběr katastrálního území">✕</button>
+            </div>
+            <div id="area-combobox" class="combobox">
                 <input id="search-area" role="combobox" aria-autocomplete="list" aria-expanded="false"
                        aria-controls="area-suggestions" placeholder="např. Jičín" required>
+                <button type="button" id="area-toggle" class="combobox-toggle" tabindex="-1"
+                        aria-label="Zobrazit seznam katastrálních území" aria-controls="area-suggestions"
+                        aria-expanded="false">▾</button>
                 <ul id="area-suggestions" class="suggestions" role="listbox" aria-label="Katastrální území" hidden></ul>
             </div>
             <label for="search-number">Číslo parcely</label>
@@ -41,6 +48,7 @@
         <ul>
             <li><span class="line line-district"></span>okres Jičín</li>
             <li><span class="line line-area"></span>katastrální území</li>
+            <li><span class="line line-area-selected"></span>vybrané katastrální území</li>
             <li><span class="line line-selected"></span>vybraná parcela</li>
         </ul>
     </details>

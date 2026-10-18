@@ -70,6 +70,64 @@ html, body {
 .combobox input {
     width: 100%;
     box-sizing: border-box;
+    padding-right: 28px;
+}
+
+.area-lock {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 4px 4px 10px;
+    font-weight: 600;
+    color: #fff;
+    background: #e8590c;
+    border-radius: 4px;
+}
+
+.area-lock[hidden],
+.combobox[hidden] {
+    display: none;
+}
+
+.area-lock span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search .area-lock button {
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.search .area-lock button:hover {
+    background: rgba(0, 0, 0, 0.32);
+}
+
+.search .combobox-toggle {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: 26px;
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 400;
+    color: #555;
+    background: none;
+    border-radius: 0 3px 3px 0;
+}
+
+.search .combobox-toggle:hover {
+    background: #eef2f7;
 }
 
 .suggestions {
@@ -183,6 +241,10 @@ html, body {
 .legend .line-area {
     border-top-width: 2px;
     border-color: #b03a2e;
+}
+
+.legend .line-area-selected {
+    border-color: #e8590c;
 }
 
 .legend .line-selected {

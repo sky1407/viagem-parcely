@@ -1,7 +1,7 @@
 'use strict';
 
 const DISTRICT_BOUNDS = [[15.104, 50.275], [15.742, 50.547]];
-const API_VERSION = '2';
+const API_VERSION = '3';
 const MIN_PARCEL_ZOOM = 14;
 const LABEL_ZOOM = 17;
 
@@ -28,6 +28,9 @@ const NOTHING_SELECTED = ['==', ['id'], -1];
 const SELECTION_LAYERS = ['parcels-selected-fill', 'parcels-selected-casing', 'parcels-selected-line'];
 const SELECTION_COLOR = '#00b4ff';
 const DISTRICT_COLOR = '#ff00a8';
+const AREA_SELECTION_LAYERS = ['cadastral-area-selected-casing', 'cadastral-area-selected-line'];
+const AREA_SELECTION_COLOR = '#e8590c';
+const AREA_MAX_ZOOM = 15;
 const BASEMAPS = {
     osm: { parcelOpacity: 0.55 },
     orthophoto: { parcelOpacity: 0.2 },
@@ -216,6 +219,31 @@ function createMap() {
                     paint: {
                         'line-color': DISTRICT_COLOR,
                         'line-width': ['interpolate', ['linear'], ['zoom'], 8, 3, 14, 5],
+                    },
+                },
+                {
+                    id: 'cadastral-area-selected-casing',
+                    type: 'line',
+                    source: 'cadastre',
+                    'source-layer': 'cadastral_areas',
+                    filter: NOTHING_SELECTED,
+                    layout: { 'line-join': 'round' },
+                    paint: {
+                        'line-color': '#ffffff',
+                        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 5, 14, 9],
+                        'line-opacity': 0.9,
+                    },
+                },
+                {
+                    id: 'cadastral-area-selected-line',
+                    type: 'line',
+                    source: 'cadastre',
+                    'source-layer': 'cadastral_areas',
+                    filter: NOTHING_SELECTED,
+                    layout: { 'line-join': 'round' },
+                    paint: {
+                        'line-color': AREA_SELECTION_COLOR,
+                        'line-width': ['interpolate', ['linear'], ['zoom'], 8, 2.5, 14, 5],
                     },
                 },
                 {
@@ -415,14 +443,14 @@ function searchKey(text) {
 function highlightMatch(name, query) {
     const key = withoutDiacritics(name);
     const start = key.indexOf(query);
-    if (start === -1 || key.length !== name.length) {
+    if (query === '' || start === -1 || key.length !== name.length) {
         return [name];
     }
     const end = start + query.length;
     return [name.slice(0, start), element('mark', name.slice(start, end)), name.slice(end)];
 }
 
-function createAreaAutocomplete(input, list, areas, onChoose) {
+function createAreaAutocomplete(input, list, toggle, areas, onChoose) {
     const entries = areas.map((area) => ({ area, key: searchKey(area.name) }));
     let matches = [];
     let active = -1;
@@ -445,6 +473,7 @@ function createAreaAutocomplete(input, list, areas, onChoose) {
         setActive(-1);
         list.hidden = true;
         input.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-expanded', 'false');
     };
 
     const choose = (area) => {
@@ -453,18 +482,20 @@ function createAreaAutocomplete(input, list, areas, onChoose) {
         onChoose(area);
     };
 
-    const render = () => {
-        const query = searchKey(input.value);
-        if (query === '') {
+    const render = (showAll) => {
+        const query = showAll ? '' : searchKey(input.value);
+        if (query === '' && !showAll) {
             close();
             return;
         }
 
-        matches = entries
-            .filter((entry) => entry.key.includes(query))
-            .sort((a, b) => Number(!a.key.startsWith(query)) - Number(!b.key.startsWith(query)))
-            .slice(0, MAX_SUGGESTIONS)
-            .map((entry) => entry.area);
+        matches = showAll
+            ? areas
+            : entries
+                .filter((entry) => entry.key.includes(query))
+                .sort((a, b) => Number(!a.key.startsWith(query)) - Number(!b.key.startsWith(query)))
+                .slice(0, MAX_SUGGESTIONS)
+                .map((entry) => entry.area);
 
         const items = matches.map((area, index) => {
             const item = element('li');
@@ -487,16 +518,27 @@ function createAreaAutocomplete(input, list, areas, onChoose) {
         list.replaceChildren(...items);
         list.hidden = false;
         input.setAttribute('aria-expanded', 'true');
-        setActive(matches.length > 0 ? 0 : -1);
+        toggle.setAttribute('aria-expanded', 'true');
+        const current = searchKey(input.value);
+        setActive(showAll ? matches.findIndex((area) => searchKey(area.name) === current) : (matches.length > 0 ? 0 : -1));
     };
 
-    input.addEventListener('input', render);
+    input.addEventListener('input', () => render(false));
     input.addEventListener('blur', close);
+    toggle.addEventListener('mousedown', (event) => event.preventDefault());
+    toggle.addEventListener('click', () => {
+        if (!list.hidden) {
+            close();
+            return;
+        }
+        input.focus();
+        render(true);
+    });
     input.addEventListener('keydown', (event) => {
         if (list.hidden) {
             if (event.key === 'ArrowDown') {
                 event.preventDefault();
-                render();
+                render(searchKey(input.value) === '');
             }
             return;
         }
@@ -519,14 +561,50 @@ async function createSearch(map, detail) {
     const form = document.getElementById('search');
     const areaInput = document.getElementById('search-area');
     const numberInput = document.getElementById('search-number');
-    const button = form.querySelector('button');
+    const button = form.querySelector('button[type="submit"]');
     const status = document.getElementById('search-status');
+    const lock = document.getElementById('area-lock');
+    const lockName = document.getElementById('area-lock-name');
+    const combobox = document.getElementById('area-combobox');
     const areas = new Map();
+    let lockedArea = null;
 
     const showStatus = (message) => {
         status.textContent = message;
         status.hidden = message === '';
     };
+
+    const highlightArea = (filter) => {
+        for (const id of AREA_SELECTION_LAYERS) {
+            map.setFilter(id, filter);
+        }
+    };
+
+    const lockArea = (area, { fit }) => {
+        lockedArea = area;
+        areaInput.value = area.name;
+        lockName.textContent = area.municipality === area.name ? area.name : `${area.name} (obec ${area.municipality})`;
+        lock.title = lockName.textContent;
+        lock.hidden = false;
+        combobox.hidden = true;
+        highlightArea(['==', ['id'], area.code]);
+        showStatus('');
+        if (fit) {
+            map.fitBounds(area.bbox, { padding: visiblePadding(), maxZoom: AREA_MAX_ZOOM });
+            numberInput.focus();
+        }
+    };
+
+    const unlockArea = () => {
+        lockedArea = null;
+        areaInput.value = '';
+        lock.hidden = true;
+        combobox.hidden = false;
+        highlightArea(NOTHING_SELECTED);
+        areaInput.focus();
+    };
+
+    document.getElementById('area-unlock').addEventListener('click', unlockArea);
 
     try {
         const response = await fetch(`/api/cadastral-areas?v=${API_VERSION}`);
@@ -537,7 +615,13 @@ async function createSearch(map, detail) {
         for (const area of list) {
             areas.set(searchKey(area.name), area);
         }
-        createAreaAutocomplete(areaInput, document.getElementById('area-suggestions'), list, () => numberInput.focus());
+        createAreaAutocomplete(
+            areaInput,
+            document.getElementById('area-suggestions'),
+            document.getElementById('area-toggle'),
+            list,
+            (area) => lockArea(area, { fit: true }),
+        );
     } catch (error) {
         console.error(error);
         showStatus('Seznam katastrálních území se nepodařilo načíst.');
@@ -547,10 +631,13 @@ async function createSearch(map, detail) {
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const area = areas.get(searchKey(areaInput.value));
+        const area = lockedArea ?? areas.get(searchKey(areaInput.value));
         if (area === undefined) {
             showStatus('Vyberte katastrální území ze seznamu.');
             return;
+        }
+        if (lockedArea === null) {
+            lockArea(area, { fit: false });
         }
 
         showStatus('');
