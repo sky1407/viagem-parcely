@@ -87,7 +87,7 @@ Oblúky sa tak nestratia ani nenahradia priamkou.
 - Router rozlišuje 404 a 405 (s hlavičkou `Allow`).
 - Celé spracovanie obaľuje `try/catch (Throwable)`. Klient dostane generické 500 a detail chyby ide iba do logu.
 
-Zadanie preferuje čisté PHP. API má 5 endpointov, takže framework by pridal viac kódu, než by ušetril.
+Zadanie preferuje čisté PHP. API bolo malé (vtedy 5 endpointov, dnes 8 trás), takže framework by pridal viac kódu, než by ušetril.
 Composer slúži iba na PSR-4 autoload.
 
 ## 10. Webový server: `php -S` s viacerými workermi
@@ -338,7 +338,7 @@ Inšpiráciou bola slovenská mapa ZBGIS, kde sa po výbere KÚ ďalej hľadá i
 
 ## 23. Kontrola pred odovzdaním: čistá inštalácia, výkon na Renderi a prehliadač
 
-Pred odovzdaním som prešiel postup z README od nuly (prázdne Docker volumes), ~40 okrajových HTTP požiadaviek proti Renderu aj kontajneru a hlavné scenáre v prehliadači na desktope aj mobile.
+Pred odovzdaním som prešiel postup z README od nuly (prázdne Docker volumes), ~40 okrajových HTTP požiadaviek proti Renderu aj kontajneru a hlavné scenáre v prehliadači na desktope aj mobile, v Chromiu aj vo Firefoxe.
 
 - **Import v Dockeri padal na pamäti:**
   - V kontajneri má PHP `memory_limit` 128 MB, lokálne CLI limit nemá, preto sa chyba pri vývoji neprejavila.
@@ -352,6 +352,18 @@ Pred odovzdaním som prešiel postup z README od nuly (prázdne Docker volumes),
   - Kompromis: po reštarte databázy vráti každé vlákno jednu chybu 500 a potom sa pripojí znova (overené reštartom kontajnera DB). Aplikácia DB iba číta, takže v pripojení neostane otvorená transakcia.
 - **CSP blokovala source mapu MapLibre:** pri otvorených DevTools sa v konzole objavila chyba `connect-src`. `connect-src` teraz povoľuje aj `unpkg.com`.
 - **Súbeh v našepkávači:** ak používateľ písal skôr, než sa načítal zoznam KÚ alebo čísel parciel, návrhy sa ukázali až po ďalšom znaku. Po načítaní sa teraz návrhy vykreslia, ak je pole aktívne. Overené s API umelo spomaleným o 1,5 s.
+- **Zoznam KÚ trval na Renderi ~7 s:**
+  - Test vo Firefoxe ukázal, že našepkávač KÚ je po otvorení stránky niekoľko sekúnd prázdny. Rovnako to bolo v Chrome.
+  - Príčina: obdĺžnik každého KÚ sa počítal transformáciou celej hranice z S-JTSK do WGS84, teda 116 tisíc bodov pri každej požiadavke.
+  - Teraz sa transformuje iba obdĺžnik stĺpca `geom_3857`. Web Mercator mení zemepisnú dĺžku a šírku nezávisle, takže obdĺžnik zostane presný a odpoveď je bajt po bajte rovnaká. Dotaz lokálne klesol z 575 ms na 19 ms.
+
+## Čo ma prekvapilo
+
+- **ČÚZK pri chýbajúcom súbore nevracia 404**, ale 200 a HTML stránku. Bez kontroly ZIP podpisu by sa chyba ukázala až pri čítaní XML.
+- **Kataster má kruhové oblúky.** 717 parciel (0,26 %) má zaoblené hranice a `ST_GeomFromGML` ich nevie načítať, preto vlastný `GmlToWkt`.
+- **Celý okres nebol o veľa ťažší ako 4 KÚ.** Import ide po obciach a dlaždice z indexu, takže rozdiel bol hlavne v čase importu (~1 minúta).
+- **Najviac chýb ukázalo až nasadenie,** nie lokálny vývoj: práva kontajnera, health check, cache prehliadača po novej verzii (bod 20 a 21).
+- **Na pomalom serveri rozhodujú iné veci ako lokálne.** Otvorenie pripojenia a načítanie definícií súradníc stálo na Renderi sekundu, transformácia hraníc KÚ sedem sekúnd. Lokálne to boli desiatky milisekúnd (bod 23).
 
 ## Známe obmedzenia a ďalšie kroky
 
