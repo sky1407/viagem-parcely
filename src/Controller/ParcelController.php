@@ -42,6 +42,21 @@ final class ParcelController
         ]);
     }
 
+    public function listByCadastralArea(int $cadastralAreaCode): void
+    {
+        $rows = $this->parcels->listByCadastralArea($cadastralAreaCode);
+        if ($rows === []) {
+            JsonResponse::error('Cadastral area not found', 404);
+            return;
+        }
+
+        header('Cache-Control: public, max-age=86400');
+        JsonResponse::send(array_map(static fn (array $row): array => [
+            'id' => $row['id'],
+            'number' => (string) new ParcelNumber($row['numbering_type'], $row['stem_number'], $row['subdivision_number']),
+        ], $rows));
+    }
+
     public function show(int $id): void
     {
         $parcel = $this->parcels->find($id);

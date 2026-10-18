@@ -65,6 +65,19 @@ final class ParcelRepository
         return $row === false ? null : $row;
     }
 
+    public function listByCadastralArea(int $cadastralAreaCode): array
+    {
+        $statement = $this->connection->get()->prepare(
+            'SELECT id, numbering_type, stem_number, subdivision_number
+            FROM parcel
+            WHERE cadastral_area_code = ?
+            ORDER BY numbering_type DESC, stem_number, subdivision_number NULLS FIRST'
+        );
+        $statement->execute([$cadastralAreaCode]);
+
+        return $statement->fetchAll();
+    }
+
     public function find(int $id): ?array
     {
         $statement = $this->connection->get()->prepare(self::FIND_SQL);

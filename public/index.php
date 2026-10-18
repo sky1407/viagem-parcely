@@ -55,6 +55,10 @@ $router->get('/api/cadastral-areas', function () use ($connection): void {
     (new CadastralAreaController(new CadastralAreaRepository($connection)))->index();
 });
 
+$router->get('/api/cadastral-areas/(?<code>\d{1,9})/parcels', function (string $code) use ($connection): void {
+    (new ParcelController(new ParcelRepository($connection)))->listByCadastralArea((int) $code);
+});
+
 $router->get('/api/parcels/search', function () use ($connection): void {
     $controller = new ParcelController(new ParcelRepository($connection));
     $controller->search($_GET['cadastral_area'] ?? null, $_GET['number'] ?? null);

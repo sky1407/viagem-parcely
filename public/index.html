@@ -28,7 +28,14 @@
                 <ul id="area-suggestions" class="suggestions" role="listbox" aria-label="Katastrální území" hidden></ul>
             </div>
             <label for="search-number">Číslo parcely</label>
-            <input id="search-number" placeholder="např. st. 1 nebo 791/34" required>
+            <div class="combobox">
+                <input id="search-number" role="combobox" aria-autocomplete="list" aria-expanded="false"
+                       aria-controls="number-suggestions" placeholder="např. st. 1 nebo 791/34" required>
+                <button type="button" id="number-toggle" class="combobox-toggle" tabindex="-1" hidden
+                        aria-label="Zobrazit seznam parcel" aria-controls="number-suggestions"
+                        aria-expanded="false">▾</button>
+                <ul id="number-suggestions" class="suggestions" role="listbox" aria-label="Parcely" hidden></ul>
+            </div>
             <button type="submit">Najít</button>
             <p id="search-status" class="status-error" hidden></p>
         </form>

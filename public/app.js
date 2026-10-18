@@ -19,6 +19,7 @@ const LAND_TYPES = [
 ];
 const UNKNOWN_LAND_TYPE_COLOR = '#bbbbbb';
 const MAX_SUGGESTIONS = 8;
+const MAX_LIST_ITEMS = 300;
 const COPY_FEEDBACK_MS = 1500;
 const MOBILE_QUERY = '(max-width: 600px)';
 const MAP_MARGIN = 40;
@@ -440,6 +441,10 @@ function searchKey(text) {
     return withoutDiacritics(text).trim();
 }
 
+function parcelNumberKey(text) {
+    return withoutDiacritics(text).replace(/[\s.]/g, '');
+}
+
 function highlightMatch(name, query) {
     const key = withoutDiacritics(name);
     const start = key.indexOf(query);
@@ -450,8 +455,8 @@ function highlightMatch(name, query) {
     return [name.slice(0, start), element('mark', name.slice(start, end)), name.slice(end)];
 }
 
-function createAreaAutocomplete(input, list, toggle, areas, onChoose) {
-    const entries = areas.map((area) => ({ area, key: searchKey(area.name) }));
+function createAutocomplete(input, list, toggle, { key, label, note, emptyText, onChoose }) {
+    let entries = [];
     let matches = [];
     let active = -1;
 
@@ -476,51 +481,54 @@ function createAreaAutocomplete(input, list, toggle, areas, onChoose) {
         toggle.setAttribute('aria-expanded', 'false');
     };
 
-    const choose = (area) => {
-        input.value = area.name;
+    const choose = (item) => {
+        input.value = label(item);
         close();
-        onChoose(area);
+        onChoose(item);
     };
 
     const render = (showAll) => {
-        const query = showAll ? '' : searchKey(input.value);
-        if (query === '' && !showAll) {
+        const query = showAll ? '' : key(input.value);
+        if (entries.length === 0 || (query === '' && !showAll)) {
             close();
             return;
         }
 
-        matches = showAll
-            ? areas
+        const found = showAll
+            ? entries
             : entries
                 .filter((entry) => entry.key.includes(query))
-                .sort((a, b) => Number(!a.key.startsWith(query)) - Number(!b.key.startsWith(query)))
-                .slice(0, MAX_SUGGESTIONS)
-                .map((entry) => entry.area);
+                .sort((a, b) => Number(!a.key.startsWith(query)) - Number(!b.key.startsWith(query)));
+        const limit = showAll ? MAX_LIST_ITEMS : MAX_SUGGESTIONS;
+        matches = found.slice(0, limit).map((entry) => entry.item);
 
-        const items = matches.map((area, index) => {
-            const item = element('li');
-            item.id = `area-option-${index}`;
-            item.setAttribute('role', 'option');
-            item.append(...highlightMatch(area.name, query));
-            if (area.municipality !== area.name) {
-                item.append(element('small', `obec ${area.municipality}`));
+        const options = matches.map((match, index) => {
+            const option = element('li');
+            option.id = `${list.id}-${index}`;
+            option.setAttribute('role', 'option');
+            option.append(...highlightMatch(label(match), query));
+            const text = note(match);
+            if (text !== null) {
+                option.append(element('small', text));
             }
-            item.addEventListener('mousedown', (event) => {
+            option.addEventListener('mousedown', (event) => {
                 event.preventDefault();
-                choose(area);
+                choose(match);
             });
-            return item;
+            return option;
         });
-        if (items.length === 0) {
-            items.push(element('li', 'Žádné katastrální území neodpovídá', 'empty'));
+        if (options.length === 0) {
+            options.push(element('li', emptyText, 'empty'));
+        } else if (showAll && found.length > limit) {
+            options.push(element('li', `… a dalších ${found.length - limit}, pište pro zúžení`, 'empty'));
         }
 
-        list.replaceChildren(...items);
+        list.replaceChildren(...options);
         list.hidden = false;
         input.setAttribute('aria-expanded', 'true');
         toggle.setAttribute('aria-expanded', 'true');
-        const current = searchKey(input.value);
-        setActive(showAll ? matches.findIndex((area) => searchKey(area.name) === current) : (matches.length > 0 ? 0 : -1));
+        const current = key(input.value);
+        setActive(showAll ? matches.findIndex((match) => key(label(match)) === current) : (matches.length > 0 ? 0 : -1));
     };
 
     input.addEventListener('input', () => render(false));
@@ -538,7 +546,7 @@ function createAreaAutocomplete(input, list, toggle, areas, onChoose) {
         if (list.hidden) {
             if (event.key === 'ArrowDown') {
                 event.preventDefault();
-                render(searchKey(input.value) === '');
+                render(key(input.value) === '');
             }
             return;
         }
@@ -555,6 +563,14 @@ function createAreaAutocomplete(input, list, toggle, areas, onChoose) {
             close();
         }
     });
+
+    return {
+        setItems(items) {
+            entries = items.map((item) => ({ item, key: key(label(item)) }));
+            toggle.hidden = items.length === 0;
+            close();
+        },
+    };
 }
 
 async function createSearch(map, detail) {
@@ -567,11 +583,65 @@ async function createSearch(map, detail) {
     const lockName = document.getElementById('area-lock-name');
     const combobox = document.getElementById('area-combobox');
     const areas = new Map();
+    const parcelLists = new Map();
     let lockedArea = null;
+    let parcelsRequest = null;
 
     const showStatus = (message) => {
         status.textContent = message;
         status.hidden = message === '';
+    };
+
+    const collapseOnMobile = () => {
+        if (isMobile()) {
+            form.closest('details').open = false;
+            document.activeElement?.blur();
+        }
+    };
+
+    const numberAutocomplete = createAutocomplete(
+        numberInput,
+        document.getElementById('number-suggestions'),
+        document.getElementById('number-toggle'),
+        {
+            key: parcelNumberKey,
+            label: (parcel) => parcel.number,
+            note: () => null,
+            emptyText: 'Žádná parcela neodpovídá',
+            onChoose: (parcel) => {
+                showStatus('');
+                collapseOnMobile();
+                detail.open(parcel.id, { fly: true });
+            },
+        },
+    );
+
+    const loadParcels = async (area) => {
+        parcelsRequest?.abort();
+        numberAutocomplete.setItems([]);
+        const cached = parcelLists.get(area.code);
+        if (cached !== undefined) {
+            numberAutocomplete.setItems(cached);
+            return;
+        }
+
+        const controller = new AbortController();
+        parcelsRequest = controller;
+        try {
+            const response = await fetch(`/api/cadastral-areas/${area.code}/parcels?v=${API_VERSION}`, { signal: controller.signal });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const parcels = await response.json();
+            parcelLists.set(area.code, parcels);
+            if (lockedArea === area) {
+                numberAutocomplete.setItems(parcels);
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(error);
+            }
+        }
     };
 
     const highlightArea = (filter) => {
@@ -588,6 +658,7 @@ async function createSearch(map, detail) {
         lock.hidden = false;
         combobox.hidden = true;
         highlightArea(['==', ['id'], area.code]);
+        loadParcels(area);
         showStatus('');
         if (fit) {
             map.fitBounds(area.bbox, { padding: visiblePadding(), maxZoom: AREA_MAX_ZOOM });
@@ -601,6 +672,8 @@ async function createSearch(map, detail) {
         lock.hidden = true;
         combobox.hidden = false;
         highlightArea(NOTHING_SELECTED);
+        parcelsRequest?.abort();
+        numberAutocomplete.setItems([]);
         areaInput.focus();
     };
 
@@ -615,13 +688,18 @@ async function createSearch(map, detail) {
         for (const area of list) {
             areas.set(searchKey(area.name), area);
         }
-        createAreaAutocomplete(
+        createAutocomplete(
             areaInput,
             document.getElementById('area-suggestions'),
             document.getElementById('area-toggle'),
-            list,
-            (area) => lockArea(area, { fit: true }),
-        );
+            {
+                key: searchKey,
+                label: (area) => area.name,
+                note: (area) => (area.municipality !== area.name ? `obec ${area.municipality}` : null),
+                emptyText: 'Žádné katastrální území neodpovídá',
+                onChoose: (area) => lockArea(area, { fit: true }),
+            },
+        ).setItems(list);
     } catch (error) {
         console.error(error);
         showStatus('Seznam katastrálních území se nepodařilo načíst.');
@@ -658,10 +736,7 @@ async function createSearch(map, detail) {
             }
 
             const parcel = await response.json();
-            if (isMobile()) {
-                form.closest('details').open = false;
-                document.activeElement?.blur();
-            }
+            collapseOnMobile();
             detail.open(parcel.id, { fly: true });
         } catch (error) {
             console.error(error);

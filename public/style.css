@@ -85,7 +85,8 @@ html, body {
 }
 
 .area-lock[hidden],
-.combobox[hidden] {
+.combobox[hidden],
+.combobox-toggle[hidden] {
     display: none;
 }
 
