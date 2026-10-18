@@ -336,6 +336,23 @@ Inšpiráciou bola slovenská mapa ZBGIS, kde sa po výbere KÚ ďalej hľadá i
   - Samopretínajúci sa polygón opraví `ST_MakeValid`, aby dotaz nespadol.
   - Kreslenie je bez knižnice: GeoJSON zdroj s tromi vrstvami (výplň, prerušovaná čiara, body). Dvojklik alebo tlačidlo „Dokončit“ tvar ukončí a na mobile slúži tlačidlo. Výsledky sa zvýraznia filtrom `['in', ['id'], ...]` a zo zoznamu sa dá otvoriť detail s návratom späť na výsledky.
 
+## 23. Kontrola pred odovzdaním: čistá inštalácia, výkon na Renderi a prehliadač
+
+Pred odovzdaním som prešiel postup z README od nuly (prázdne Docker volumes), ~40 okrajových HTTP požiadaviek proti Renderu aj kontajneru a hlavné scenáre v prehliadači na desktope aj mobile.
+
+- **Import v Dockeri padal na pamäti:**
+  - V kontajneri má PHP `memory_limit` 128 MB, lokálne CLI limit nemá, preto sa chyba pri vývoji neprejavila.
+  - Príčina: `ParcelWriter` si pamätal pripravený `INSERT` pre každý počet riadkov. Posledná dávka každej obce má iný počet, takže za celý okres vznikli stovky dotazov s až 500 riadkami.
+  - Teraz sa pamätá iba dotaz pre plnú dávku, zvyšok sa pripraví jednorazovo. Špička pamäte klesla z viac ako 128 MB na 6 MB.
+- **Detail parcely na Renderi trval ~1 s:**
+  - `/api/health` odpovedal za 0,1 s, detail a hľadanie za 1–3 s. Každá požiadavka otvárala nové pripojenie a prvé `ST_Transform` na ňom načítava definície PROJ. Lokálne to stojí 30 ms, na pomalom CPU free plánu ~1 s.
+  - Zvažoval som uložiť bbox vo WGS84 už pri importe. Pomohlo by to iba dotazom s `ST_Transform` a vyžadovalo by zmenu schémy aj nové nahranie dát.
+  - Vybral som trvalé pripojenia (`PDO::ATTR_PERSISTENT`) iba vo webovom vstupe. Každé PHP vlákno si drží jedno pripojenie a s ním aj načítaný PROJ. Lokálne detail klesol z 33 ms na 3–4 ms.
+  - CLI skripty ostávajú pri bežnom pripojení. `warm-tiles.php` otvára pripojenie pred `pcntl_fork` a trvalé pripojenie by si potomkovia zdieľali na jednom sockete.
+  - Kompromis: po reštarte databázy vráti každé vlákno jednu chybu 500 a potom sa pripojí znova (overené reštartom kontajnera DB). Aplikácia DB iba číta, takže v pripojení neostane otvorená transakcia.
+- **CSP blokovala source mapu MapLibre:** pri otvorených DevTools sa v konzole objavila chyba `connect-src`. `connect-src` teraz povoľuje aj `unpkg.com`.
+- **Súbeh v našepkávači:** ak používateľ písal skôr, než sa načítal zoznam KÚ alebo čísel parciel, návrhy sa ukázali až po ďalšom znaku. Po načítaní sa teraz návrhy vykreslia, ak je pole aktívne. Overené s API umelo spomaleným o 1,5 s.
+
 ## Známe obmedzenia a ďalšie kroky
 
 - **Integračné testy API** (s testovacou DB) chýbajú. Endpointy som overoval ručne cez `curl` vrátane chybových stavov.
