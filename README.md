@@ -56,7 +56,7 @@ Aplikácia beží na <http://127.0.0.1:8080/>. Pohľad na mapu aj vybraná parce
 vendor/bin/phpunit
 ```
 
-Unit testy (PHPUnit 12) pokrývajú prevod GML → WKT vrátane oblúkov, parsovanie čísla parcely a router.
+Unit testy (PHPUnit 12) pokrývajú prevod GML → WKT vrátane oblúkov, parsovanie čísla parcely, validáciu nakreslenej línie alebo oblasti a router.
 Nepotrebujú databázu ani sieť.
 
 ### Voľby skriptov
