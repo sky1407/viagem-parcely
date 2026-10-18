@@ -133,10 +133,11 @@ final class ParcelWriter
 
     private function statement(string $table, string $columns, string $row, int $rows): PDOStatement
     {
-        $key = "{$table}:{$rows}";
+        $sql = "INSERT INTO {$table} {$columns} VALUES " . implode(', ', array_fill(0, $rows, $row));
+        if ($rows !== self::BATCH_SIZE) {
+            return $this->pdo->prepare($sql);
+        }
 
-        return $this->statements[$key] ??= $this->pdo->prepare(
-            "INSERT INTO {$table} {$columns} VALUES " . implode(', ', array_fill(0, $rows, $row))
-        );
+        return $this->statements[$table] ??= $this->pdo->prepare($sql);
     }
 }
