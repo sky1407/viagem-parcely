@@ -20,7 +20,7 @@ final class CadastralAreaRepository
                 round(ST_XMax(b.box)::numeric, 6) AS east, round(ST_YMax(b.box)::numeric, 6) AS north
             FROM cadastral_area c
             JOIN municipality m ON m.code = c.municipality_code
-            CROSS JOIN LATERAL (SELECT ST_Transform(c.geom, 4326)::box2d AS box) b
+            CROSS JOIN LATERAL (SELECT ST_Transform(ST_Envelope(c.geom_3857), 4326)::box2d AS box) b
             ORDER BY c.name COLLATE "cs-CZ-x-icu", c.code'
         )->fetchAll();
 
