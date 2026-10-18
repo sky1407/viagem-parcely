@@ -79,6 +79,24 @@ final class RouterTest extends TestCase
         self::assertSame(404, http_response_code());
     }
 
+    public function testPostRouteRunsOnlyForPost(): void
+    {
+        $called = false;
+        $router = new Router();
+        $router->post('/api/parcels/intersect', function () use (&$called): void {
+            $called = true;
+        });
+
+        $router->dispatch('POST', '/api/parcels/intersect');
+        self::assertTrue($called);
+
+        $called = false;
+        $this->expectOutputString('{"error":"Method not allowed"}');
+        $router->dispatch('GET', '/api/parcels/intersect');
+        self::assertFalse($called);
+        self::assertSame(405, http_response_code());
+    }
+
     public function testReturnsNotFoundForUnknownPath(): void
     {
         $router = new Router();

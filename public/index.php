@@ -64,6 +64,11 @@ $router->get('/api/parcels/search', function () use ($connection): void {
     $controller->search($_GET['cadastral_area'] ?? null, $_GET['number'] ?? null);
 });
 
+$router->post('/api/parcels/intersect', function () use ($connection): void {
+    $body = file_get_contents('php://input', length: ParcelController::MAX_BODY_BYTES + 1);
+    (new ParcelController(new ParcelRepository($connection)))->intersect($body);
+});
+
 $router->get('/api/parcels/(?<id>\d{1,18})', function (string $id) use ($connection): void {
     $controller = new ParcelController(new ParcelRepository($connection));
     $controller->show((int) $id);

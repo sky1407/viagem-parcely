@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Domain\DrawnGeometry;
 use App\Domain\ParcelNumber;
 use App\LazyConnection;
+use PDO;
 
 final class ParcelRepository
 {
@@ -44,6 +46,19 @@ final class ParcelRepository
             WHERE cadastral_area_code = ? AND numbering_type = ? AND stem_number = ? AND %s
         ) found';
 
+    private const INTERSECTING_SQL = 'SELECT p.id, p.numbering_type, p.stem_number, p.subdivision_number, p.area_m2,
+            c.name AS cadastral_area_name, lt.name AS land_type
+        FROM (
+            SELECT id
+            FROM parcel
+            WHERE ST_Intersects(geom_3857, ST_Transform(ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)), 3857))
+            LIMIT ?
+        ) hit
+        JOIN parcel p ON p.id = hit.id
+        JOIN cadastral_area c ON c.code = p.cadastral_area_code
+        JOIN land_type lt ON lt.code = p.land_type_code
+        ORDER BY c.name COLLATE "cs-CZ-x-icu", p.numbering_type DESC, p.stem_number, p.subdivision_number NULLS FIRST';
+
     public function __construct(private readonly LazyConnection $connection)
     {
     }
@@ -74,6 +89,16 @@ final class ParcelRepository
             ORDER BY numbering_type DESC, stem_number, subdivision_number NULLS FIRST'
         );
         $statement->execute([$cadastralAreaCode]);
+
+        return $statement->fetchAll();
+    }
+
+    public function intersecting(DrawnGeometry $geometry, int $limit): array
+    {
+        $statement = $this->connection->get()->prepare(self::INTERSECTING_SQL);
+        $statement->bindValue(1, $geometry->toGeoJson());
+        $statement->bindValue(2, $limit, PDO::PARAM_INT);
+        $statement->execute();
 
         return $statement->fetchAll();
     }

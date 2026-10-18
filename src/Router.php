@@ -16,6 +16,11 @@ final class Router
         $this->routes[] = ['GET', '#^' . $pattern . '$#', $handler];
     }
 
+    public function post(string $pattern, Closure $handler): void
+    {
+        $this->routes[] = ['POST', '#^' . $pattern . '$#', $handler];
+    }
+
     public function dispatch(string $method, string $path): void
     {
         $allowedMethods = [];

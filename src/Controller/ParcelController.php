@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Domain\DrawnGeometry;
 use App\Domain\ParcelNumber;
 use App\Http\JsonResponse;
 use App\Repository\ParcelRepository;
+use InvalidArgumentException;
+use JsonException;
 
 final class ParcelController
 {
     private const CADASTRE_VIEWER_URL = 'https://nahlizenidokn.cuzk.gov.cz/ZobrazObjekt.aspx?typ=parcela&id=%d';
+    public const MAX_BODY_BYTES = 16384;
+    private const MAX_INTERSECTED = 500;
 
     public function __construct(private readonly ParcelRepository $parcels)
     {
@@ -55,6 +60,36 @@ final class ParcelController
             'id' => $row['id'],
             'number' => (string) new ParcelNumber($row['numbering_type'], $row['stem_number'], $row['subdivision_number']),
         ], $rows));
+    }
+
+    public function intersect(string|false $body): void
+    {
+        if ($body === false || strlen($body) > self::MAX_BODY_BYTES) {
+            JsonResponse::error('Request body is missing or too large', 413);
+            return;
+        }
+
+        try {
+            $geometry = DrawnGeometry::fromArray(json_decode($body, true, 8, JSON_THROW_ON_ERROR));
+        } catch (JsonException) {
+            JsonResponse::error('Request body must be a GeoJSON geometry', 400);
+            return;
+        } catch (InvalidArgumentException $e) {
+            JsonResponse::error($e->getMessage(), 400);
+            return;
+        }
+
+        $rows = $this->parcels->intersecting($geometry, self::MAX_INTERSECTED + 1);
+        JsonResponse::send([
+            'truncated' => count($rows) > self::MAX_INTERSECTED,
+            'parcels' => array_map(static fn (array $row): array => [
+                'id' => $row['id'],
+                'number' => (string) new ParcelNumber($row['numbering_type'], $row['stem_number'], $row['subdivision_number']),
+                'cadastral_area' => $row['cadastral_area_name'],
+                'land_type' => $row['land_type'],
+                'area_m2' => $row['area_m2'],
+            ], array_slice($rows, 0, self::MAX_INTERSECTED)),
+        ]);
     }
 
     public function show(int $id): void
