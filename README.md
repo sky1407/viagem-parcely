@@ -140,7 +140,7 @@ Namerané 17. 10. 2026 na prebudenej inštancii:
 
 | | čas |
 |---|---|
-| `index.html`, `app.js`, `/api/health` | 60–100 ms |
+| `index.html`, JS moduly, `/api/health` | 60–100 ms |
 | dlaždica z cache (z8–z14 predgenerované) | 55–120 ms |
 | dlaždica z15–z16 pri prvom zobrazení | 0,3–3,7 s |
 | prebudenie uspatej inštancie | ~1 min |
@@ -171,7 +171,16 @@ bin/
   warm-tiles.php          paralelné predgenerovanie dlaždíc
 public/
   index.php               front controller (routy, DI, globálne ošetrenie chýb)
-  index.html, app.js, style.css
+  index.html, style.css
+  js/                     frontend ako ES moduly bez bundlera
+    main.js               vstupný bod, prepojí moduly
+    config.js             konštanty (zoomy, farby, limity)
+    util.js               URL hash, mobil, prelet na parcelu, DOM pomocník
+    map.js                mapa a jej vrstvy, legenda, hover, stav načítania
+    detail.js             bočný panel s detailom parcely
+    identify.js           identifikácia bodom, líniou a oblasťou
+    autocomplete.js       našepkávač bez ohľadu na diakritiku
+    search.js             hľadanie parcely podľa KÚ a čísla
 src/
   Router.php              regex router s pomenovanými parametrami, 404/405
   Database.php            továreň na PDO

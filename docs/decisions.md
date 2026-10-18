@@ -155,7 +155,8 @@ odolná (`!is_dir() && !mkdir() && !is_dir()`), warning som potlačil iba na tom
 
 **Možnosti:** Leaflet (vektorové dlaždice iba cez pluginy), OpenLayers, MapLibre GL JS. Načítanie cez CDN alebo npm + bundler.
 
-**Voľba:** MapLibre GL JS 5.24.0 z CDN s **pevnou verziou a SRI hashom**, jeden súbor `app.js` bez frameworku.
+**Voľba:** MapLibre GL JS 5.24.0 z CDN s **pevnou verziou a SRI hashom**, vlastný kód bez frameworku ako natívne ES moduly v `public/js/`.
+- **Moduly bez bundlera:** pôvodne jeden súbor `app.js`. Po pridaní hľadania a identifikácie mal 1 129 riadkov, preto som ho rozdelil podľa zodpovednosti na 8 modulov (`map.js`, `detail.js`, `search.js`…). Prehliadač ich načíta sám cez `<script type="module">`, build krok netreba. Funkcie sa iba presunuli, správanie overil rovnaký test v prehliadači pred rozdelením aj po ňom.
 - Vektorové dlaždice sa kreslia na GPU. Farbu podľa druhu pozemku počíta výraz `match` priamo v štýle.
 - Zdroj má `maxzoom: 16`, pri väčšom priblížení sa dlaždice z16 iba zväčšujú. Server tak nikdy negeneruje z17+.
 - Aktuálny pohľad sa ukladá do URL (`hash: true`), dá sa zdieľať a prežije obnovenie stránky.
@@ -317,7 +318,7 @@ Na záver som prešiel celý projekt znova. Nálezy som overil na bežiacej apli
 - **Rovnaké riziko** platilo pre dlaždice (cache 1 deň, bez čísel parciel) aj pre `app.js`, ktorý nemal nastavené cachovanie, takže si ho prehliadač mohol heuristicky podržať.
 - **Riešenie:**
   - Všetky volania API a dlaždíc nesú verziu (`?v=2`). Pri zmene formátu dát sa zvýši `API_VERSION` a prehliadač stiahne nové odpovede, pričom dlhú cache pre nezmenené dáta netreba skracovať.
-  - `index.html`, `app.js` a `style.css` majú `Cache-Control: no-cache`. Prehliadač sa vždy spýta, či sú aktuálne, a pri nezmenenom súbore dostane 304.
+  - `index.html`, `style.css` a JS moduly v `js/` majú `Cache-Control: no-cache`. Pri moduloch je to dôležité aj preto, aby prehliadač nemiešal novú a starú verziu jednotlivých súborov. Prehliadač sa vždy spýta, či sú aktuálne, a pri nezmenenom súbore dostane 304.
   - Prelet bez platného `bbox` sa preskočí, takže detail sa zobrazí aj vtedy.
 
 ## 22. Hľadanie podľa vzoru ZBGIS: zamknuté KÚ, zoznam čísel a identifikácia tvarom

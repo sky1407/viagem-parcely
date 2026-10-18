@@ -16,7 +16,7 @@
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		-X-Powered-By
 	}
-	@app path / /index.html /app.js /style.css
+	@app path / /index.html /style.css /js/*
 	header @app Cache-Control no-cache
 	rewrite / /index.html
 	php_server
