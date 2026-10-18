@@ -15,7 +15,18 @@ Backend je čisté PHP bez frameworku, dáta sú v PostgreSQL/PostGIS a frontend
 
 **Živá ukážka:** <https://viagem-parcely.onrender.com>. Beží na free pláne Renderu: po 15 minútach nečinnosti sa uspí
 a prvé načítanie potom trvá asi minútu.
-Rozhodnutia aj s nameranými číslami sú v [zápisníku rozhodnutí](docs/decisions.md).
+Rozhodnutia aj s nameranými číslami sú v [zápisníku rozhodnutí](docs/decisions.md), vrátane toho, čo ma prekvapilo
+a čo by som s viac časom riešil inak.
+
+## Čas
+
+Projekt mi zabral približne 15–20 hodín, teda viac ako odhadovaných 4–12. Dôvody:
+
+- **Celý okres namiesto minimálnych 4 KÚ.** Samotný rozsah stál málo, ale overenie dát (240 hraníc KÚ, 0 nevalidných tvarov, súčet plôch) a plynulosť pri 271 995 parcelách si vyžiadali meranie a ladenie.
+- **Oblúky v hraniciach parciel.** Funkcia PostGIS ich nevie načítať, preto vlastný prevod GML → WKT s unit testami.
+- **PHP som sa učil počas projektu.** Predtým som v ňom nepracoval.
+- **Nasadenie na Render.** Nebolo podmienkou, ale odhalilo chyby, ktoré sa lokálne neprejavia (tabuľka nižšie).
+- **Funkcie navyše:** hľadanie so zamknutým KÚ, identifikácia líniou a oblasťou, čísla parciel v mape, zdieľanie odkazu, ortofoto a mobilné rozhranie.
 
 ## Predpoklady
 
