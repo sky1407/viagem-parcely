@@ -4,7 +4,7 @@ COPY composer.json composer.lock ./
 COPY src/ src/
 RUN composer install --no-dev --no-interaction --no-progress --ignore-platform-reqs --classmap-authoritative
 
-FROM dunglas/frankenphp:1-php8.5
+FROM dunglas/frankenphp:1.13.2-php8.5.12
 RUN install-php-extensions pdo_pgsql pcntl zip \
     && setcap -r /usr/local/bin/frankenphp \
     && useradd --create-home --uid 1000 app \
