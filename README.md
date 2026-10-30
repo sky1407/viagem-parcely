@@ -48,6 +48,23 @@ docker compose exec app php bin/warm-tiles.php      # voliteľné: predgenerovan
 
 Aplikácia beží na <http://127.0.0.1:8080/>. Port sa dá zmeniť premennou `APP_PORT`.
 
+#### Ak spustenie v Dockeri zlyhá
+
+- **Kontajner `app` hneď spadne s chybou `exec: start-app: not found`** (najčastejšie na Windowse):
+  Git pri klonovaní zmenil konce riadkov v `docker/app/start.sh` na CRLF. Repozitár to už bráni cez `.gitattributes`,
+  pri starom klone ho stačí naklonovať znova s LF koncami a image zostaviť nanovo:
+
+  ```bash
+  git clone -c core.autocrlf=input https://github.com/sky1407/viagem-parcely.git
+  cd viagem-parcely
+  docker compose build --no-cache app && docker compose up -d
+  ```
+
+- **`port is already allocated`**: port 8080 alebo 5433 už používa iná aplikácia. Zvoľte iné porty:
+  `APP_PORT=8081 DB_PORT=5434 docker compose up -d --build`.
+- **`Cannot connect to the Docker daemon` / `docker could not be found`**: Docker nebeží. Spustite Docker Desktop
+  (vo WSL zapnite v nastaveniach *Resources → WSL integration*).
+
 ### S lokálnym PHP (vývoj)
 
 ```bash
