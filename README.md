@@ -13,8 +13,6 @@ Webová aplikácia, ktorá na mape zobrazuje všetky parcely katastra nehnuteľn
 
 Backend je čisté PHP bez frameworku, dáta sú v PostgreSQL/PostGIS a frontend používa MapLibre GL JS bez build kroku.
 
-**Živá ukážka:** <https://viagem-parcely.onrender.com>. Beží na free pláne Renderu: po 15 minútach nečinnosti sa uspí
-a prvé načítanie potom trvá asi minútu.
 Rozhodnutia aj s nameranými číslami sú v [zápisníku rozhodnutí](docs/decisions.md), vrátane toho, čo ma prekvapilo
 a čo by som s viac časom riešil inak.
 
